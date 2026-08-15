@@ -191,14 +191,36 @@ router.post("/instructor/batch-submissions", requireAuth, async (req, res) => {
 
   const results = [];
   for (const sub of parsed.data.submissions) {
-    // Validate assignment
-    const assignments = await db
-      .select()
-      .from(assignmentsTable)
-      .where(eq(assignmentsTable.id, sub.assignmentId));
+    // Resolve the assignment:
+    // 1. If assignmentId is "auto" or blank, look up a real one by level+track.
+    // 2. Otherwise try to find the specific ID.
+    // 3. Fall back to a level+track lookup before creating a placeholder.
+    let assignments: (typeof assignmentsTable.$inferSelect)[] = [];
 
+    const isAuto = !sub.assignmentId || sub.assignmentId === "auto";
+    if (!isAuto) {
+      assignments = await db
+        .select()
+        .from(assignmentsTable)
+        .where(eq(assignmentsTable.id, sub.assignmentId));
+    }
+
+    // If still not found, resolve by level+track
     if (assignments.length === 0) {
-      // Create a placeholder assignment
+      assignments = await db
+        .select()
+        .from(assignmentsTable)
+        .where(
+          and(
+            eq(assignmentsTable.level, sub.level),
+            eq(assignmentsTable.track, sub.track)
+          )
+        )
+        .limit(1);
+    }
+
+    // Last resort: create a generic placeholder
+    if (assignments.length === 0) {
       const [newAssignment] = await db
         .insert(assignmentsTable)
         .values({ level: sub.level, track: sub.track, prompt: "Classroom assignment" })
