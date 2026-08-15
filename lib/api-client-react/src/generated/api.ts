@@ -25,9 +25,14 @@ import type {
   ChatMessage,
   ChatMessageInput,
   ChatMessagePair,
+  ClassroomCourse,
+  ClassroomCoursework,
+  ClassroomImportInput,
+  ClassroomStudentSubmission,
   DashboardSummary,
   ErrorResponse,
   GetRandomAssignmentParams,
+  GoogleAuthStatus,
   HealthStatus,
   InstructorLoginInput,
   InstructorSession,
@@ -1053,6 +1058,461 @@ export function useGetInstructorSummary<TData = Awaited<ReturnType<typeof getIns
 
 
 
+
+export const getGetGoogleAuthStatusUrl = () => {
+
+
+
+
+  return `/api/auth/status`
+}
+
+/**
+ * @summary Check if Google Classroom OAuth is connected
+ */
+export const getGoogleAuthStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<GoogleAuthStatus> => {
+
+  return customFetch<GoogleAuthStatus>(getGetGoogleAuthStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGoogleAuthStatusQueryKey = () => {
+    return [
+    `/api/auth/status`
+    ] as const;
+    }
+
+
+export const getGetGoogleAuthStatusQueryOptions = <TData = Awaited<ReturnType<typeof getGoogleAuthStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoogleAuthStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGoogleAuthStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGoogleAuthStatus>>> = ({ signal }) => getGoogleAuthStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGoogleAuthStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGoogleAuthStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getGoogleAuthStatus>>>
+export type GetGoogleAuthStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check if Google Classroom OAuth is connected
+ */
+
+export function useGetGoogleAuthStatus<TData = Awaited<ReturnType<typeof getGoogleAuthStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoogleAuthStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGoogleAuthStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDisconnectGoogleUrl = () => {
+
+
+
+
+  return `/api/auth/disconnect`
+}
+
+/**
+ * @summary Disconnect Google Classroom OAuth
+ */
+export const disconnectGoogle = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDisconnectGoogleUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectGoogleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGoogle>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectGoogle>>, TError,void, TContext> => {
+
+const mutationKey = ['disconnectGoogle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectGoogle>>, void> = () => {
+
+
+          return  disconnectGoogle(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectGoogleMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectGoogle>>>
+
+    export type DisconnectGoogleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Disconnect Google Classroom OAuth
+ */
+export const useDisconnectGoogle = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGoogle>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectGoogle>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDisconnectGoogleMutationOptions(options));
+    }
+
+export const getListClassroomCoursesUrl = () => {
+
+
+
+
+  return `/api/classroom/courses`
+}
+
+/**
+ * @summary List Google Classroom courses for the authenticated teacher
+ */
+export const listClassroomCourses = async ( options?: Parameters<typeof customFetch>[1]): Promise<ClassroomCourse[]> => {
+
+  return customFetch<ClassroomCourse[]>(getListClassroomCoursesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClassroomCoursesQueryKey = () => {
+    return [
+    `/api/classroom/courses`
+    ] as const;
+    }
+
+
+export const getListClassroomCoursesQueryOptions = <TData = Awaited<ReturnType<typeof listClassroomCourses>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClassroomCourses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClassroomCoursesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClassroomCourses>>> = ({ signal }) => listClassroomCourses({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClassroomCourses>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClassroomCoursesQueryResult = NonNullable<Awaited<ReturnType<typeof listClassroomCourses>>>
+export type ListClassroomCoursesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List Google Classroom courses for the authenticated teacher
+ */
+
+export function useListClassroomCourses<TData = Awaited<ReturnType<typeof listClassroomCourses>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClassroomCourses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClassroomCoursesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClassroomCourseworkUrl = (courseId: string,) => {
+
+
+
+
+  return `/api/classroom/courses/${courseId}/coursework`
+}
+
+/**
+ * @summary List coursework items for a course
+ */
+export const listClassroomCoursework = async (courseId: string, options?: Parameters<typeof customFetch>[1]): Promise<ClassroomCoursework[]> => {
+
+  return customFetch<ClassroomCoursework[]>(getListClassroomCourseworkUrl(courseId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClassroomCourseworkQueryKey = (courseId: string,) => {
+    return [
+    `/api/classroom/courses/${courseId}/coursework`
+    ] as const;
+    }
+
+
+export const getListClassroomCourseworkQueryOptions = <TData = Awaited<ReturnType<typeof listClassroomCoursework>>, TError = ErrorType<ErrorResponse>>(courseId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClassroomCoursework>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClassroomCourseworkQueryKey(courseId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClassroomCoursework>>> = ({ signal }) => listClassroomCoursework(courseId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: courseId !== null && courseId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClassroomCoursework>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClassroomCourseworkQueryResult = NonNullable<Awaited<ReturnType<typeof listClassroomCoursework>>>
+export type ListClassroomCourseworkQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List coursework items for a course
+ */
+
+export function useListClassroomCoursework<TData = Awaited<ReturnType<typeof listClassroomCoursework>>, TError = ErrorType<ErrorResponse>>(
+ courseId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClassroomCoursework>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClassroomCourseworkQueryOptions(courseId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClassroomSubmissionsUrl = (courseId: string,
+    courseworkId: string,) => {
+
+
+
+
+  return `/api/classroom/courses/${courseId}/coursework/${courseworkId}/submissions`
+}
+
+/**
+ * @summary List student submissions for a coursework item
+ */
+export const listClassroomSubmissions = async (courseId: string,
+    courseworkId: string, options?: Parameters<typeof customFetch>[1]): Promise<ClassroomStudentSubmission[]> => {
+
+  return customFetch<ClassroomStudentSubmission[]>(getListClassroomSubmissionsUrl(courseId,courseworkId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClassroomSubmissionsQueryKey = (courseId: string,
+    courseworkId: string,) => {
+    return [
+    `/api/classroom/courses/${courseId}/coursework/${courseworkId}/submissions`
+    ] as const;
+    }
+
+
+export const getListClassroomSubmissionsQueryOptions = <TData = Awaited<ReturnType<typeof listClassroomSubmissions>>, TError = ErrorType<ErrorResponse>>(courseId: string,
+    courseworkId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClassroomSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClassroomSubmissionsQueryKey(courseId,courseworkId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClassroomSubmissions>>> = ({ signal }) => listClassroomSubmissions(courseId,courseworkId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: courseId !== null && courseId !== undefined && courseworkId !== null && courseworkId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClassroomSubmissions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClassroomSubmissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listClassroomSubmissions>>>
+export type ListClassroomSubmissionsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List student submissions for a coursework item
+ */
+
+export function useListClassroomSubmissions<TData = Awaited<ReturnType<typeof listClassroomSubmissions>>, TError = ErrorType<ErrorResponse>>(
+ courseId: string,
+    courseworkId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClassroomSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClassroomSubmissionsQueryOptions(courseId,courseworkId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportClassroomSubmissionsUrl = () => {
+
+
+
+
+  return `/api/classroom/import`
+}
+
+/**
+ * @summary Download, grade, and store selected Classroom submissions
+ */
+export const importClassroomSubmissions = async (classroomImportInput: ClassroomImportInput, options?: Parameters<typeof customFetch>[1]): Promise<Submission[]> => {
+
+  return customFetch<Submission[]>(getImportClassroomSubmissionsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(classroomImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportClassroomSubmissionsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importClassroomSubmissions>>, TError,{data: BodyType<ClassroomImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importClassroomSubmissions>>, TError,{data: BodyType<ClassroomImportInput>}, TContext> => {
+
+const mutationKey = ['importClassroomSubmissions'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importClassroomSubmissions>>, {data: BodyType<ClassroomImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importClassroomSubmissions(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportClassroomSubmissionsMutationResult = NonNullable<Awaited<ReturnType<typeof importClassroomSubmissions>>>
+    export type ImportClassroomSubmissionsMutationBody = BodyType<ClassroomImportInput>
+    export type ImportClassroomSubmissionsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Download, grade, and store selected Classroom submissions
+ */
+export const useImportClassroomSubmissions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importClassroomSubmissions>>, TError,{data: BodyType<ClassroomImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importClassroomSubmissions>>,
+        TError,
+        {data: BodyType<ClassroomImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportClassroomSubmissionsMutationOptions(options));
+    }
 
 export const getReviewHtmlUrl = () => {
 

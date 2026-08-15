@@ -331,6 +331,135 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /auth/status:
+    get:
+      operationId: getGoogleAuthStatus
+      tags: [instructor]
+      summary: Check if Google Classroom OAuth is connected
+      responses:
+        "200":
+          description: Auth status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleAuthStatus"
+  /auth/disconnect:
+    post:
+      operationId: disconnectGoogle
+      tags: [instructor]
+      summary: Disconnect Google Classroom OAuth
+      responses:
+        "204":
+          description: Disconnected
+  /classroom/courses:
+    get:
+      operationId: listClassroomCourses
+      tags: [instructor]
+      summary: List Google Classroom courses for the authenticated teacher
+      responses:
+        "200":
+          description: Course list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClassroomCourse"
+        "401":
+          description: Not connected to Google
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /classroom/courses/{courseId}/coursework:
+    get:
+      operationId: listClassroomCoursework
+      tags: [instructor]
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+      summary: List coursework items for a course
+      responses:
+        "200":
+          description: Coursework list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClassroomCoursework"
+        "401":
+          description: Not connected to Google
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /classroom/courses/{courseId}/coursework/{courseworkId}/submissions:
+    get:
+      operationId: listClassroomSubmissions
+      tags: [instructor]
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: courseworkId
+          in: path
+          required: true
+          schema:
+            type: string
+      summary: List student submissions for a coursework item
+      responses:
+        "200":
+          description: Student submission list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClassroomStudentSubmission"
+        "401":
+          description: Not connected to Google
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /classroom/import:
+    post:
+      operationId: importClassroomSubmissions
+      tags: [instructor]
+      summary: Download, grade, and store selected Classroom submissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassroomImportInput"
+      responses:
+        "201":
+          description: Graded results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not connected to Google
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /review:
     post:
       operationId: reviewHtml
@@ -586,6 +715,72 @@ components:
         youtubeUrl:
           type: ["string", "null"]
       required: [id, title, summary, explanation, codeExample, youtubeUrl]
+    GoogleAuthStatus:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        email:
+          type: ["string", "null"]
+      required: [connected, email]
+    ClassroomCourse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        section:
+          type: ["string", "null"]
+        enrollmentCode:
+          type: ["string", "null"]
+      required: [id, name, section, enrollmentCode]
+    ClassroomCoursework:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        state:
+          type: string
+      required: [id, title, description, state]
+    ClassroomStudentSubmission:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        studentName:
+          type: string
+        state:
+          type: string
+        hasHtmlAttachment:
+          type: boolean
+        attachmentFileId:
+          type: ["string", "null"]
+        attachmentFileName:
+          type: ["string", "null"]
+      required: [id, userId, studentName, state, hasHtmlAttachment, attachmentFileId, attachmentFileName]
+    ClassroomImportInput:
+      type: object
+      properties:
+        courseId:
+          type: string
+          minLength: 1
+        courseworkId:
+          type: string
+          minLength: 1
+        courseworkTitle:
+          type: string
+        submissionIds:
+          type: array
+          items:
+            type: string
+      required: [courseId, courseworkId, courseworkTitle, submissionIds]
     ReviewInput:
       type: object
       properties:

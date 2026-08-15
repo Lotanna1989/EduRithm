@@ -1,1 +1,2 @@
 - [OpenAPI/Zod compatibility](api-zod-compatibility.md) — verify generated schemas against the installed Zod runtime before restarting the API.
+- [Orval Zod body naming](orval-zod-naming.md) — Orval names request-body schemas after the operationId, not the schema name; grep api-zod before importing.

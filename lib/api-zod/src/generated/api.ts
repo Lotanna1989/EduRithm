@@ -321,6 +321,110 @@ export const GetInstructorSummaryResponse = zod.object({
 
 
 /**
+ * @summary Check if Google Classroom OAuth is connected
+ */
+export const GetGoogleAuthStatusResponse = zod.object({
+  "connected": zod.boolean(),
+  "email": zod.string().nullable()
+})
+
+
+/**
+ * @summary Disconnect Google Classroom OAuth
+ */
+export const DisconnectGoogleResponse = zod.void()
+
+
+/**
+ * @summary List Google Classroom courses for the authenticated teacher
+ */
+export const ListClassroomCoursesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "section": zod.string().nullable(),
+  "enrollmentCode": zod.string().nullable()
+})
+export const ListClassroomCoursesResponse = zod.array(ListClassroomCoursesResponseItem)
+
+
+/**
+ * @summary List coursework items for a course
+ */
+export const ListClassroomCourseworkParams = zod.object({
+  "courseId": zod.coerce.string()
+})
+
+export const ListClassroomCourseworkResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "state": zod.string()
+})
+export const ListClassroomCourseworkResponse = zod.array(ListClassroomCourseworkResponseItem)
+
+
+/**
+ * @summary List student submissions for a coursework item
+ */
+export const ListClassroomSubmissionsParams = zod.object({
+  "courseId": zod.coerce.string(),
+  "courseworkId": zod.coerce.string()
+})
+
+export const ListClassroomSubmissionsResponseItem = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "studentName": zod.string(),
+  "state": zod.string(),
+  "hasHtmlAttachment": zod.boolean(),
+  "attachmentFileId": zod.string().nullable(),
+  "attachmentFileName": zod.string().nullable()
+})
+export const ListClassroomSubmissionsResponse = zod.array(ListClassroomSubmissionsResponseItem)
+
+
+/**
+ * @summary Download, grade, and store selected Classroom submissions
+ */
+
+
+
+
+export const ImportClassroomSubmissionsBody = zod.object({
+  "courseId": zod.string().min(1),
+  "courseworkId": zod.string().min(1),
+  "courseworkTitle": zod.string(),
+  "submissionIds": zod.array(zod.string())
+})
+
+export const ImportClassroomSubmissionsResponseItem = zod.object({
+  "id": zod.string(),
+  "studentName": zod.string(),
+  "studentId": zod.string(),
+  "level": zod.enum(['100L', '300L', '500L']),
+  "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
+  "assignment": zod.object({
+  "id": zod.string(),
+  "level": zod.enum(['100L', '300L', '500L']),
+  "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
+  "prompt": zod.string()
+}),
+  "fileName": zod.string(),
+  "codeContent": zod.string(),
+  "score": zod.number().nullable(),
+  "meetsRequirements": zod.boolean().nullable(),
+  "issuesFound": zod.array(zod.string()),
+  "explanation": zod.string().nullable(),
+  "correctedSnippet": zod.string().nullable(),
+  "flagged": zod.boolean(),
+  "status": zod.enum(['queued', 'graded', 'failed']),
+  "createdAt": zod.coerce.date(),
+  "fixItUrl": zod.string().nullable()
+})
+export const ImportClassroomSubmissionsResponse = zod.array(ImportClassroomSubmissionsResponseItem)
+
+
+/**
  * @summary Review any HTML file without an assignment
  */
 

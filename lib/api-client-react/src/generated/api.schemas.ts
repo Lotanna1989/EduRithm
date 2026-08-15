@@ -219,6 +219,50 @@ export interface LearnConcept {
   youtubeUrl: string | null;
 }
 
+export interface GoogleAuthStatus {
+  connected: boolean;
+  /** @nullable */
+  email: string | null;
+}
+
+export interface ClassroomCourse {
+  id: string;
+  name: string;
+  /** @nullable */
+  section: string | null;
+  /** @nullable */
+  enrollmentCode: string | null;
+}
+
+export interface ClassroomCoursework {
+  id: string;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  state: string;
+}
+
+export interface ClassroomStudentSubmission {
+  id: string;
+  userId: string;
+  studentName: string;
+  state: string;
+  hasHtmlAttachment: boolean;
+  /** @nullable */
+  attachmentFileId: string | null;
+  /** @nullable */
+  attachmentFileName: string | null;
+}
+
+export interface ClassroomImportInput {
+  /** @minLength 1 */
+  courseId: string;
+  /** @minLength 1 */
+  courseworkId: string;
+  courseworkTitle: string;
+  submissionIds: string[];
+}
+
 export interface ReviewInput {
   /** @minLength 1 */
   fileName: string;
