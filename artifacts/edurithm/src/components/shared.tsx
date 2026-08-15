@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { AlertTriangle, ArrowRight, BookOpen, Check, ChevronRight, CircleHelp, Code2, FileUp, LayoutDashboard, LogOut, Upload, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BookOpen, Check, ChevronRight, CircleHelp, Code2, FileUp, LayoutDashboard, LogOut, ScanSearch, Upload, X } from 'lucide-react';
 
 export function Brand({ inverse = false }: { inverse?: boolean }) {
   return (
@@ -20,6 +20,9 @@ export function StudentNav() {
       <div className="mx-auto flex max-w-[1240px] items-center justify-between px-5 py-4 lg:px-8">
         <Brand />
         <nav className="flex items-center gap-1.5 sm:gap-3">
+          <Link href="/review" className={`focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${location === '/review' ? 'bg-[#dfe8a7] text-[#162239]' : 'text-[#536078] hover:bg-[#ece7dc] hover:text-[#162239]'}`} data-testid="link-review">
+            <ScanSearch size={16} /> <span className="hidden sm:inline">Review</span>
+          </Link>
           <Link href="/learn" className={`focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${location === '/learn' ? 'bg-[#dfe8a7] text-[#162239]' : 'text-[#536078] hover:bg-[#ece7dc] hover:text-[#162239]'}`} data-testid="link-learn">
             <BookOpen size={16} /> <span className="hidden sm:inline">Learn</span>
           </Link>

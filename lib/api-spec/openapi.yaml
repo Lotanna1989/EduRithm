@@ -18,6 +18,8 @@ tags:
     description: Instructor dashboard and batch upload operations
   - name: learn
     description: Static learning content
+  - name: review
+    description: Open-ended HTML file review with no assignment required
 paths:
   /healthz:
     get:
@@ -329,6 +331,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /review:
+    post:
+      operationId: reviewHtml
+      tags: [review]
+      summary: Review any HTML file without an assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewInput"
+      responses:
+        "200":
+          description: Review result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Grading service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /learn:
     get:
       operationId: listLearnConcepts
@@ -554,4 +586,34 @@ components:
         youtubeUrl:
           type: ["string", "null"]
       required: [id, title, summary, explanation, codeExample, youtubeUrl]
+    ReviewInput:
+      type: object
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+        codeContent:
+          type: string
+          minLength: 1
+      required: [fileName, codeContent]
+    ReviewResult:
+      type: object
+      properties:
+        score:
+          type: number
+        meetsBaseline:
+          type: boolean
+        issuesFound:
+          type: array
+          items:
+            type: string
+        highlights:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: string
+        correctedSnippet:
+          type: string
+      required: [score, meetsBaseline, issuesFound, highlights, explanation, correctedSnippet]
 

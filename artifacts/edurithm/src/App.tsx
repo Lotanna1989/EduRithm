@@ -6,6 +6,7 @@ import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
 import FixItPage from '@/pages/fix-it';
 import LearnPage from '@/pages/learn';
+import ReviewPage from '@/pages/review';
 import InstructorPage from '@/pages/instructor';
 import InstructorUploadPage from '@/pages/instructor-upload';
 import { Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
@@ -22,6 +23,7 @@ function Router() {
     <Route path="/" component={Home} />
     <Route path="/fix/:submissionId" component={FixItPage} />
     <Route path="/learn" component={LearnPage} />
+    <Route path="/review" component={ReviewPage} />
     <Route path="/instructor/upload" component={InstructorUploadPage} />
     <Route path="/instructor" component={InstructorPage} />
     <Route component={NotFound} />

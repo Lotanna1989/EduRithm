@@ -26,6 +26,8 @@ export * from './learnConcept';
 export * from './listInstructorSubmissionsLevel';
 export * from './listInstructorSubmissionsParams';
 export * from './listInstructorSubmissionsTrack';
+export * from './reviewInput';
+export * from './reviewResult';
 export * from './submission';
 export * from './submissionInput';
 export * from './submissionInputLevel';

@@ -129,6 +129,55 @@ Respond with ONLY the JSON object. No markdown fences, no extra text.`;
   };
 }
 
+export interface ReviewResult {
+  score: number;
+  meetsBaseline: boolean;
+  issuesFound: string[];
+  highlights: string[];
+  explanation: string;
+  correctedSnippet: string;
+}
+
+export async function reviewHtmlOpen(
+  fileName: string,
+  codeContent: string
+): Promise<ReviewResult> {
+  const prompt = `You are an expert HTML/CSS/JavaScript instructor reviewing a student's web page submission.
+
+STUDENT FILE: ${fileName}
+STUDENT CODE:
+\`\`\`html
+${codeContent}
+\`\`\`
+
+Review this code on its own merits — there is no specific assignment. Assess the quality of the HTML structure, semantics, CSS (if present), and JavaScript (if present) as a supportive educator would.
+
+Return ONLY valid JSON with exactly these fields:
+- "score": integer 0-100 reflecting overall code quality
+- "meetsBaseline": boolean — true if the code is a reasonable, working HTML page (score >= 50)
+- "issuesFound": array of short actionable strings for specific problems (empty if none)
+- "highlights": array of short strings praising specific things done well (empty if nothing stands out)
+- "explanation": 2-4 sentences summarising the overall quality and the single most important improvement
+- "correctedSnippet": a short corrected HTML snippet illustrating the main fix (empty string if no fix needed)
+
+Respond with ONLY the JSON object. No markdown fences, no extra text.`;
+
+  const raw = await callGemini(
+    [{ role: "user", parts: [{ text: prompt }] }],
+    { json: true, maxTokens: 2048 }
+  );
+
+  const parsed = JSON.parse(stripJsonFences(raw)) as ReviewResult;
+  return {
+    score: Math.min(100, Math.max(0, Math.round(Number(parsed.score) || 0))),
+    meetsBaseline: Boolean(parsed.meetsBaseline),
+    issuesFound: Array.isArray(parsed.issuesFound) ? parsed.issuesFound.map(String) : [],
+    highlights: Array.isArray(parsed.highlights) ? parsed.highlights.map(String) : [],
+    explanation: String(parsed.explanation || ""),
+    correctedSnippet: String(parsed.correctedSnippet || ""),
+  };
+}
+
 export async function chatAboutCode(
   assignmentPrompt: string,
   codeContent: string,

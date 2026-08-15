@@ -219,6 +219,22 @@ export interface LearnConcept {
   youtubeUrl: string | null;
 }
 
+export interface ReviewInput {
+  /** @minLength 1 */
+  fileName: string;
+  /** @minLength 1 */
+  codeContent: string;
+}
+
+export interface ReviewResult {
+  score: number;
+  meetsBaseline: boolean;
+  issuesFound: string[];
+  highlights: string[];
+  explanation: string;
+  correctedSnippet: string;
+}
+
 export type GetRandomAssignmentParams = {
 level: GetRandomAssignmentLevel;
 track: GetRandomAssignmentTrack;

@@ -33,6 +33,8 @@ import type {
   InstructorSession,
   LearnConcept,
   ListInstructorSubmissionsParams,
+  ReviewInput,
+  ReviewResult,
   Submission,
   SubmissionInput,
   SubmissionRow
@@ -1051,6 +1053,77 @@ export function useGetInstructorSummary<TData = Awaited<ReturnType<typeof getIns
 
 
 
+
+export const getReviewHtmlUrl = () => {
+
+
+
+
+  return `/api/review`
+}
+
+/**
+ * @summary Review any HTML file without an assignment
+ */
+export const reviewHtml = async (reviewInput: ReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<ReviewResult> => {
+
+  return customFetch<ReviewResult>(getReviewHtmlUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewHtmlMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewHtml>>, TError,{data: BodyType<ReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewHtml>>, TError,{data: BodyType<ReviewInput>}, TContext> => {
+
+const mutationKey = ['reviewHtml'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewHtml>>, {data: BodyType<ReviewInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  reviewHtml(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewHtmlMutationResult = NonNullable<Awaited<ReturnType<typeof reviewHtml>>>
+    export type ReviewHtmlMutationBody = BodyType<ReviewInput>
+    export type ReviewHtmlMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Review any HTML file without an assignment
+ */
+export const useReviewHtml = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewHtml>>, TError,{data: BodyType<ReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewHtml>>,
+        TError,
+        {data: BodyType<ReviewInput>},
+        TContext
+      > => {
+      return useMutation(getReviewHtmlMutationOptions(options));
+    }
 
 export const getListLearnConceptsUrl = () => {
 

@@ -321,6 +321,28 @@ export const GetInstructorSummaryResponse = zod.object({
 
 
 /**
+ * @summary Review any HTML file without an assignment
+ */
+
+
+
+
+export const ReviewHtmlBody = zod.object({
+  "fileName": zod.string().min(1),
+  "codeContent": zod.string().min(1)
+})
+
+export const ReviewHtmlResponse = zod.object({
+  "score": zod.number(),
+  "meetsBaseline": zod.boolean(),
+  "issuesFound": zod.array(zod.string()),
+  "highlights": zod.array(zod.string()),
+  "explanation": zod.string(),
+  "correctedSnippet": zod.string()
+})
+
+
+/**
  * @summary List coding learning concepts
  */
 export const ListLearnConceptsResponseItem = zod.object({
