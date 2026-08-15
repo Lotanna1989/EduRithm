@@ -1,0 +1,40 @@
+Build a web app called "EduRithm" for an AI-powered coding education platform.
+
+STACK: React frontend, Node.js/Express backend, Gemini API (Google AI Studio, free tier) for grading and chat, Replit DB or SQLite for storing students, submissions, scores, and flags.
+
+FEATURES:
+
+1. STUDENT UPLOAD PAGE (public, no login):
+- Student enters: name, student ID, course level (100L/300L/500L), course track (Digital Literacy or Web and Software Engineering)
+- Before uploading, the app shows them a randomly selected assignment question from a pre-set list (I will provide the list, stored per level/track)
+- Student uploads their .html file
+- The file is sent to the Gemini API with a grading prompt (I will provide it) returning JSON: score, meets_requirements, issues_found, explanation, corrected_snippet
+- Store the result, linked to the student and the assignment question they were given
+- If score < 60 or meets_requirements is false, mark as "flagged"
+- After grading, show the student their result immediately (score, explanation, corrected snippet) and if flagged, a link to the "Fix It" page
+- Log every Gemini API call with a timestamp
+
+2. INSTRUCTOR UPLOAD PAGE (for batch upload of Classroom-collected submissions, password-protected):
+- Same as above but allows uploading multiple files at once with student details entered per file
+
+3. INSTRUCTOR DASHBOARD (same password protection):
+- Table: student name, level, track, score, flagged (yes/no), issues found, timestamp
+- Filter to show only flagged students
+- Click a row for full detail (explanation, corrected snippet)
+
+4. STUDENT "FIX IT" PAGE (unique link per flagged submission, no login):
+- Left panel: code editor pre-loaded with their submitted code
+- Right panel: live iframe preview rendering the code
+- Below: Gemini's explanation and corrected snippet, with a "copy" button on the snippet
+- A chat box to ask Gemini follow-up questions about their code — CAP at 5 messages per student per submission. After 5, show "Ask your instructor for more help" instead of calling the API. Log every chat message with a timestamp.
+
+5. "LEARN" PAGE (static, no AI calls):
+- List of concept cards: title, short explanation, code example, embedded YouTube video
+- I will provide the content separately — set up the structure now
+
+6. DESIGN:
+- Clean, simple, mobile-responsive — most users are on phones
+- Large readable text, minimal clutter
+- Simple branding: "EduRithm"
+
+Scaffold the database schema, backend routes, and all pages first. I'll provide exact Gemini prompts next.

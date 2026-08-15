@@ -10,6 +10,14 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: assignments
+    description: Assignment question operations
+  - name: submissions
+    description: Student submission and grading operations
+  - name: instructor
+    description: Instructor dashboard and batch upload operations
+  - name: learn
+    description: Static learning content
 paths:
   /healthz:
     get:
@@ -24,6 +32,321 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /assignments/random:
+    get:
+      operationId: getRandomAssignment
+      tags: [assignments]
+      summary: Get a random assignment question
+      parameters:
+        - name: level
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [100L, 300L, 500L]
+        - name: track
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [Digital Literacy, Web and Software Engineering]
+      responses:
+        "200":
+          description: Assignment question
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignmentQuestion"
+        "400":
+          description: Invalid assignment filters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /submissions:
+    post:
+      operationId: createSubmission
+      tags: [submissions]
+      summary: Submit an HTML assignment for grading
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmissionInput"
+      responses:
+        "201":
+          description: Graded submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "400":
+          description: Invalid submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Grading service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /submissions/{submissionId}:
+    get:
+      operationId: getSubmission
+      tags: [submissions]
+      summary: Get a submission and its grading result
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Submission detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /submissions/{submissionId}/chat:
+    get:
+      operationId: listSubmissionChat
+      tags: [submissions]
+      summary: List follow-up chat messages
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+    post:
+      operationId: sendSubmissionChat
+      tags: [submissions]
+      summary: Ask a follow-up question about a submission
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatMessageInput"
+      responses:
+        "201":
+          description: Assistant response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessagePair"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Chat limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /instructor/auth/login:
+    post:
+      operationId: instructorLogin
+      tags: [instructor]
+      summary: Start an instructor session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstructorLoginInput"
+      responses:
+        "200":
+          description: Instructor session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstructorSession"
+        "401":
+          description: Invalid password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /instructor/auth/logout:
+    post:
+      operationId: instructorLogout
+      tags: [instructor]
+      summary: End an instructor session
+      responses:
+        "204":
+          description: Session ended
+  /instructor/auth/session:
+    get:
+      operationId: getInstructorSession
+      tags: [instructor]
+      summary: Check instructor session status
+      responses:
+        "200":
+          description: Instructor session status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstructorSession"
+  /instructor/submissions:
+    get:
+      operationId: listInstructorSubmissions
+      tags: [instructor]
+      summary: List submissions for the instructor dashboard
+      parameters:
+        - name: flaggedOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [100L, 300L, 500L]
+        - name: track
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [Digital Literacy, Web and Software Engineering]
+      responses:
+        "200":
+          description: Submission rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubmissionRow"
+        "401":
+          description: Instructor session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /instructor/submissions/{submissionId}:
+    get:
+      operationId: getInstructorSubmission
+      tags: [instructor]
+      summary: Get a full submission detail
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Submission detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "401":
+          description: Instructor session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /instructor/batch-submissions:
+    post:
+      operationId: createBatchSubmissions
+      tags: [instructor]
+      summary: Grade multiple classroom submissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchSubmissionInput"
+      responses:
+        "201":
+          description: Batch grading results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+        "401":
+          description: Instructor session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /instructor/summary:
+    get:
+      operationId: getInstructorSummary
+      tags: [instructor]
+      summary: Get dashboard summary metrics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          description: Instructor session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /learn:
+    get:
+      operationId: listLearnConcepts
+      tags: [learn]
+      summary: List coding learning concepts
+      responses:
+        "200":
+          description: Learning concepts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LearnConcept"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +356,212 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    AssignmentQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        level:
+          type: string
+          enum: [100L, 300L, 500L]
+        track:
+          type: string
+          enum: [Digital Literacy, Web and Software Engineering]
+        prompt:
+          type: string
+      required: [id, level, track, prompt]
+    SubmissionInput:
+      type: object
+      properties:
+        studentName:
+          type: string
+          minLength: 2
+        studentId:
+          type: string
+          minLength: 1
+        level:
+          type: string
+          enum: [100L, 300L, 500L]
+        track:
+          type: string
+          enum: [Digital Literacy, Web and Software Engineering]
+        assignmentId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+          minLength: 1
+        codeContent:
+          type: string
+          minLength: 1
+      required: [studentName, studentId, level, track, assignmentId, fileName, codeContent]
+    Submission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentName:
+          type: string
+        studentId:
+          type: string
+        level:
+          type: string
+          enum: [100L, 300L, 500L]
+        track:
+          type: string
+          enum: [Digital Literacy, Web and Software Engineering]
+        assignment:
+          $ref: "#/components/schemas/AssignmentQuestion"
+        fileName:
+          type: string
+        codeContent:
+          type: string
+        score:
+          type: ["number", "null"]
+        meetsRequirements:
+          type: ["boolean", "null"]
+        issuesFound:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: ["string", "null"]
+        correctedSnippet:
+          type: ["string", "null"]
+        flagged:
+          type: boolean
+        status:
+          type: string
+          enum: [queued, graded, failed]
+        createdAt:
+          type: string
+          format: date-time
+        fixItUrl:
+          type: ["string", "null"]
+      required: [id, studentName, studentId, level, track, assignment, fileName, codeContent, score, meetsRequirements, issuesFound, explanation, correctedSnippet, flagged, status, createdAt, fixItUrl]
+    SubmissionRow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentName:
+          type: string
+        studentId:
+          type: string
+        level:
+          type: string
+          enum: [100L, 300L, 500L]
+        track:
+          type: string
+          enum: [Digital Literacy, Web and Software Engineering]
+        score:
+          type: ["number", "null"]
+        flagged:
+          type: boolean
+        issuesFound:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [queued, graded, failed]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, studentName, studentId, level, track, score, flagged, issuesFound, status, createdAt]
+    BatchSubmissionInput:
+      type: object
+      properties:
+        submissions:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/SubmissionInput"
+      required: [submissions]
+    ChatMessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required: [content]
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [student, assistant]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, role, content, createdAt]
+    ChatMessagePair:
+      type: object
+      properties:
+        userMessage:
+          $ref: "#/components/schemas/ChatMessage"
+        assistantMessage:
+          $ref: "#/components/schemas/ChatMessage"
+        messagesRemaining:
+          type: integer
+      required: [userMessage, assistantMessage, messagesRemaining]
+    InstructorLoginInput:
+      type: object
+      properties:
+        password:
+          type: string
+          minLength: 1
+      required: [password]
+    InstructorSession:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+      required: [authenticated]
+    DashboardSummary:
+      type: object
+      properties:
+        totalSubmissions:
+          type: integer
+        flaggedSubmissions:
+          type: integer
+        averageScore:
+          type: number
+        recentSubmissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubmissionRow"
+      required: [totalSubmissions, flaggedSubmissions, averageScore, recentSubmissions]
+    LearnConcept:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        summary:
+          type: string
+        explanation:
+          type: string
+        codeExample:
+          type: string
+        youtubeUrl:
+          type: ["string", "null"]
+      required: [id, title, summary, explanation, codeExample, youtubeUrl]
 

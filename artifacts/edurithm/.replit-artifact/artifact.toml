@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "EduRithm"
+description = "An AI-powered coding education platform where students submit HTML assignments, receive grading feedback, fix flagged work in an interactive workspace, and learn from curated coding concepts."
+version = "1.0.0"
+id = "artifacts/edurithm"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24846
+
+[services.development]
+run = "pnpm --filter @workspace/edurithm run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/edurithm", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/edurithm/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24846"
+BASE_PATH = "/"
