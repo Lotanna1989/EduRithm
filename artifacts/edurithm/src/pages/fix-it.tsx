@@ -1,0 +1,49 @@
+import { useEffect, useState } from 'react';
+import { ArrowLeft, Check, Clipboard, ExternalLink, MessageCircle, Send, WandSparkles } from 'lucide-react';
+import { Link, useParams } from 'wouter';
+import { useGetSubmission, getGetSubmissionQueryKey, useListSubmissionChat, getListSubmissionChatQueryKey, useSendSubmissionChat } from '@workspace/api-client-react';
+import { ErrorState, ScoreRing, SkeletonBlock, StatusPill, StudentNav } from '@/components/shared';
+
+export default function FixItPage() {
+  const params = useParams<{ submissionId: string }>();
+  const submissionId = params.submissionId ?? '';
+  const submissionQuery = useGetSubmission(submissionId, { query: { queryKey: getGetSubmissionQueryKey(submissionId), enabled: !!submissionId } });
+  const chatQuery = useListSubmissionChat(submissionId, { query: { queryKey: getListSubmissionChatQueryKey(submissionId), enabled: !!submissionId } });
+  const sendChat = useSendSubmissionChat();
+  const submission = submissionQuery.data;
+  const [code, setCode] = useState('');
+  const [initialized, setInitialized] = useState(false);
+  const [message, setMessage] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => { if (submission && !initialized) { setCode(submission.codeContent); setInitialized(true); } }, [submission, initialized]);
+  const copySnippet = async () => { if (!submission?.correctedSnippet) return; await navigator.clipboard?.writeText(submission.correctedSnippet); setCopied(true); window.setTimeout(() => setCopied(false), 1800); };
+  const ask = () => { const content = message.trim(); if (!content || sendChat.isPending) return; sendChat.mutate({ submissionId, data: { content } }, { onSuccess: () => setMessage('') }); };
+
+  if (submissionQuery.isLoading) return <div className="app-shell bg-[#f7f3ea]"><StudentNav /><main className="mx-auto max-w-[1200px] px-5 py-12"><SkeletonBlock className="h-10 w-72" /><SkeletonBlock className="mt-4 h-5 w-[32rem]" /><div className="mt-10 grid gap-6 lg:grid-cols-2"><SkeletonBlock className="h-[460px]" /><SkeletonBlock className="h-[460px]" /></div></main></div>;
+  if (submissionQuery.isError || !submission) return <div className="app-shell bg-[#f7f3ea]"><StudentNav /><main className="mx-auto max-w-[700px] px-5 py-16"><ErrorState message="This feedback link has gone quiet. Try submitting your assignment again." /></main></div>;
+
+  const liveCode = code || submission.codeContent;
+  return <div className="noise app-shell bg-[#f7f3ea]">
+    <StudentNav />
+    <main className="mx-auto max-w-[1280px] px-5 pb-16 pt-9 lg:px-8">
+      <Link href="/" className="focus-ring inline-flex items-center gap-2 text-sm font-bold text-[#687386] transition-colors hover:text-[#162239]" data-testid="link-back-home"><ArrowLeft size={16} /> Back to a new submission</Link>
+      <div className="mt-7 flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><p className="eyebrow">Fix It workspace / {submission.fileName}</p><h1 className="mt-2 font-display text-4xl font-bold tracking-tight text-[#162239] sm:text-5xl">You’re closer than you think.</h1><p className="mt-3 max-w-2xl text-[#687386]">Here’s what the reviewer noticed, and a live space to test the next version.</p></div><StatusPill status={submission.status} flagged={submission.flagged} /></div>
+      <div className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_.65fr]">
+        <section className="min-w-0 space-y-6">
+          <div className="card-lift overflow-hidden">
+            <div className="flex flex-col justify-between gap-3 border-b border-[#dedbd2] bg-[#1d2b42] px-5 py-4 text-[#f7f3ea] sm:flex-row sm:items-center"><div className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-md bg-[#d7f34b] text-[#162239]"><WandSparkles size={15} /></span><span className="font-display font-bold">Your working file</span></div><span className="font-mono text-[.68rem] text-[#aeb9c9]">HTML · changes stay in this session</span></div>
+            <div className="grid lg:grid-cols-2"><div className="border-b border-[#dedbd2] lg:border-b-0 lg:border-r"><div className="flex items-center justify-between bg-[#f0ede5] px-4 py-2"><span className="eyebrow">edit</span><span className="font-mono text-[.65rem] text-[#7d8794]">live</span></div><textarea className="code-area min-h-[370px] w-full border-0 bg-[#202f47] p-5 text-[.76rem] text-[#e5ebdf] outline-none" value={liveCode} onChange={(e) => setCode(e.target.value)} spellCheck={false} data-testid="input-code-editor" /></div><div><div className="flex items-center justify-between bg-[#f0ede5] px-4 py-2"><span className="eyebrow">preview</span><span className="flex items-center gap-1 font-mono text-[.65rem] text-[#7d8794]"><span className="h-1.5 w-1.5 rounded-full bg-[#8da923]" /> updating</span></div><iframe title="Live HTML preview" srcDoc={liveCode} className="min-h-[370px] w-full bg-white" sandbox="allow-scripts" data-testid="frame-live-preview" /></div></div>
+          </div>
+          <section className="card-lift p-5 sm:p-7"><div className="flex items-start justify-between gap-4"><div><p className="eyebrow">The useful bit</p><h2 className="mt-1 font-display text-2xl font-bold">What to change next</h2></div><div className="text-right"><ScoreRing score={submission.score} size="sm" /><p className="mt-1 font-mono text-[.63rem] text-[#687386]">current score</p></div></div><p className="mt-5 text-[.95rem] leading-relaxed text-[#4d596d]">{submission.explanation || 'Your reviewer is still gathering notes. Check back in a moment.'}</p>{submission.issuesFound.length > 0 && <div className="mt-5 grid gap-3 sm:grid-cols-2">{submission.issuesFound.map((issue, index) => <div key={`${issue}-${index}`} className="flex gap-3 rounded-xl bg-[#f9e4dd] p-3.5 text-sm leading-relaxed text-[#774437]"><span className="mt-0.5 font-mono text-xs font-bold text-[#d95e49]">0{index + 1}</span><span>{issue}</span></div>)}</div>}</section>
+          {submission.correctedSnippet && <section className="card-lift overflow-hidden p-5 sm:p-7"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><p className="eyebrow">A starting point</p><h2 className="mt-1 font-display text-2xl font-bold">Corrected snippet</h2></div><button className="btn-outline min-h-9 px-3 text-xs" onClick={copySnippet} data-testid="button-copy-snippet"><Clipboard size={14} /> {copied ? 'Copied' : 'Copy snippet'}</button></div><pre className="mt-5 overflow-x-auto rounded-xl bg-[#162239] p-5 font-mono text-xs leading-6 text-[#dce6d7]" data-testid="text-corrected-snippet"><code>{submission.correctedSnippet}</code></pre><p className="mt-3 text-xs text-[#78817d]">Use this as a comparison, not a shortcut. Notice what changed and why.</p></section>}
+        </section>
+        <aside className="space-y-6">
+          <div className="card-lift p-6"><p className="eyebrow">Your brief</p><h2 className="mt-2 font-display text-xl font-bold">{submission.assignment.prompt}</h2><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-[#edf4c9] px-2.5 py-1 font-mono text-[.66rem] font-bold text-[#536c1c]">{submission.level}</span><span className="rounded-full bg-[#ece7dc] px-2.5 py-1 font-mono text-[.66rem] font-bold text-[#687386]">{submission.track}</span></div></div>
+          <div className="card-lift flex min-h-[360px] flex-col overflow-hidden"><div className="border-b border-[#dedbd2] bg-[#edf4c9] px-5 py-4"><div className="flex items-center gap-2"><MessageCircle size={17} className="text-[#536c1c]" /><h2 className="font-display text-lg font-bold">Ask about your feedback</h2></div><p className="mt-1 text-xs text-[#64704d]">Short questions, focused answers.</p></div><div className="flex-1 space-y-3 overflow-y-auto p-4">{(chatQuery.data ?? []).length === 0 && <div className="py-8 text-center"><p className="font-display text-base font-bold text-[#536078]">Something unclear?</p><p className="mt-1 text-xs leading-relaxed text-[#7b8491]">Ask why an issue matters or what to try next.</p></div>}{(chatQuery.data ?? []).map((chat) => <div key={chat.id} className={`max-w-[92%] rounded-xl p-3 text-sm leading-relaxed ${chat.role === 'student' ? 'ml-auto bg-[#162239] text-[#f7f3ea]' : 'bg-[#f0ede5] text-[#4d596d]'}`} data-testid={`message-chat-${chat.id}`}>{chat.content}</div>)}{sendChat.data?.assistantMessage && <div className="max-w-[92%] rounded-xl bg-[#f0ede5] p-3 text-sm leading-relaxed text-[#4d596d]" data-testid="message-chat-latest">{sendChat.data.assistantMessage.content}</div>}</div><div className="border-t border-[#dedbd2] p-3"><div className="flex gap-2"><input className="field min-h-10 py-2 text-sm" placeholder="Ask one thing…" maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') ask(); }} disabled={sendChat.data?.messagesRemaining === 0} data-testid="input-chat-message" /><button className="btn-dark min-h-10 px-3" onClick={ask} disabled={!message.trim() || sendChat.isPending || sendChat.data?.messagesRemaining === 0} data-testid="button-send-chat"><Send size={15} /></button></div>{sendChat.data && <p className="mt-2 text-right font-mono text-[.62rem] text-[#7b8491]">{sendChat.data.messagesRemaining} questions remaining</p>}{sendChat.isError && <p className="mt-2 text-xs font-bold text-[#9d3f2b]">That question did not send. Try once more.</p>}</div></div>
+          <Link href="/learn" className="card-lift flex items-center justify-between p-5 transition-colors hover:bg-[#edf4c9]" data-testid="link-learn-from-fix"><span><span className="eyebrow">Keep learning</span><span className="mt-1 block font-display font-bold">Browse the concept library</span></span><ExternalLink size={17} className="text-[#536c1c]" /></Link>
+        </aside>
+      </div>
+    </main>
+  </div>;
+}

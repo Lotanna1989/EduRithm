@@ -1,0 +1,1 @@
+- [OpenAPI/Zod compatibility](api-zod-compatibility.md) — verify generated schemas against the installed Zod runtime before restarting the API.

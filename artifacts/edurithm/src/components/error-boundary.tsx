@@ -37,25 +37,25 @@ function toError(value: unknown): Error {
 
 function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6">
-      <div className="max-w-lg w-full text-center">
-        <h1 className="text-xl font-semibold text-gray-900">
-          Something went wrong
+    <div className="noise grid min-h-[100dvh] w-full place-items-center bg-[#f7f3ea] p-6">
+      <div className="w-full max-w-lg text-center">
+        <p className="eyebrow">A little detour</p>
+        <h1 className="mt-3 font-display text-4xl font-bold tracking-tight text-[#162239]">
+          Something slipped.
         </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          This part of the app hit an error. The rest of the app is still
-          running.
+        <p className="mt-3 text-sm leading-relaxed text-[#687386]">
+          This part of the studio hit an error. Your other work is still safe.
         </p>
         {/* Dev only: messages can carry API responses and other internals. */}
         {import.meta.env.DEV ? (
-          <pre className="mt-4 overflow-x-auto rounded bg-gray-100 p-3 text-left text-xs text-gray-800">
+          <pre className="mt-4 overflow-x-auto rounded-xl bg-[#162239] p-3 text-left text-xs text-[#dce6d7]">
             {error.message || String(error)}
           </pre>
         ) : null}
         <button
           type="button"
           onClick={resetError}
-          className="mt-4 rounded bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700"
+          className="btn-dark mt-5"
         >
           Try again
         </button>

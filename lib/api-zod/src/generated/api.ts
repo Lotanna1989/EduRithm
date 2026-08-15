@@ -26,7 +26,7 @@ export const GetRandomAssignmentQueryParams = zod.object({
 })
 
 export const GetRandomAssignmentResponse = zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
   "prompt": zod.string()
@@ -48,19 +48,19 @@ export const CreateSubmissionBody = zod.object({
   "studentId": zod.string().min(1),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
-  "assignmentId": zod.uuid(),
+  "assignmentId": zod.string(),
   "fileName": zod.string().min(1),
   "codeContent": zod.string().min(1)
 })
 
 export const CreateSubmissionResponse = zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "studentName": zod.string(),
   "studentId": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
   "assignment": zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
   "prompt": zod.string()
@@ -83,17 +83,17 @@ export const CreateSubmissionResponse = zod.object({
  * @summary Get a submission and its grading result
  */
 export const GetSubmissionParams = zod.object({
-  "submissionId": zod.uuid()
+  "submissionId": zod.coerce.string()
 })
 
 export const GetSubmissionResponse = zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "studentName": zod.string(),
   "studentId": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
   "assignment": zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
   "prompt": zod.string()
@@ -116,11 +116,11 @@ export const GetSubmissionResponse = zod.object({
  * @summary List follow-up chat messages
  */
 export const ListSubmissionChatParams = zod.object({
-  "submissionId": zod.uuid()
+  "submissionId": zod.coerce.string()
 })
 
 export const ListSubmissionChatResponseItem = zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "role": zod.enum(['student', 'assistant']),
   "content": zod.string(),
   "createdAt": zod.coerce.date()
@@ -132,7 +132,7 @@ export const ListSubmissionChatResponse = zod.array(ListSubmissionChatResponseIt
  * @summary Ask a follow-up question about a submission
  */
 export const SendSubmissionChatParams = zod.object({
-  "submissionId": zod.uuid()
+  "submissionId": zod.coerce.string()
 })
 
 export const sendSubmissionChatBodyContentMax = 2000;
@@ -145,18 +145,18 @@ export const SendSubmissionChatBody = zod.object({
 
 export const SendSubmissionChatResponse = zod.object({
   "userMessage": zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "role": zod.enum(['student', 'assistant']),
   "content": zod.string(),
   "createdAt": zod.coerce.date()
 }),
   "assistantMessage": zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "role": zod.enum(['student', 'assistant']),
   "content": zod.string(),
   "createdAt": zod.coerce.date()
 }),
-  "messagesRemaining": zod.int()
+  "messagesRemaining": zod.number()
 })
 
 
@@ -201,7 +201,7 @@ export const ListInstructorSubmissionsQueryParams = zod.object({
 })
 
 export const ListInstructorSubmissionsResponseItem = zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "studentName": zod.string(),
   "studentId": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
@@ -219,17 +219,17 @@ export const ListInstructorSubmissionsResponse = zod.array(ListInstructorSubmiss
  * @summary Get a full submission detail
  */
 export const GetInstructorSubmissionParams = zod.object({
-  "submissionId": zod.uuid()
+  "submissionId": zod.coerce.string()
 })
 
 export const GetInstructorSubmissionResponse = zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "studentName": zod.string(),
   "studentId": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
   "assignment": zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
   "prompt": zod.string()
@@ -265,20 +265,20 @@ export const CreateBatchSubmissionsBody = zod.object({
   "studentId": zod.string().min(1),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
-  "assignmentId": zod.uuid(),
+  "assignmentId": zod.string(),
   "fileName": zod.string().min(1),
   "codeContent": zod.string().min(1)
 })).min(1)
 })
 
 export const CreateBatchSubmissionsResponseItem = zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "studentName": zod.string(),
   "studentId": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
   "assignment": zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
   "track": zod.enum(['Digital Literacy', 'Web and Software Engineering']),
   "prompt": zod.string()
@@ -302,11 +302,11 @@ export const CreateBatchSubmissionsResponse = zod.array(CreateBatchSubmissionsRe
  * @summary Get dashboard summary metrics
  */
 export const GetInstructorSummaryResponse = zod.object({
-  "totalSubmissions": zod.int(),
-  "flaggedSubmissions": zod.int(),
+  "totalSubmissions": zod.number(),
+  "flaggedSubmissions": zod.number(),
   "averageScore": zod.number(),
   "recentSubmissions": zod.array(zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "studentName": zod.string(),
   "studentId": zod.string(),
   "level": zod.enum(['100L', '300L', '500L']),
@@ -324,7 +324,7 @@ export const GetInstructorSummaryResponse = zod.object({
  * @summary List coding learning concepts
  */
 export const ListLearnConceptsResponseItem = zod.object({
-  "id": zod.uuid(),
+  "id": zod.string(),
   "title": zod.string(),
   "summary": zod.string(),
   "explanation": zod.string(),

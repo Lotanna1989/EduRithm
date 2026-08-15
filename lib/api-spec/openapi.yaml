@@ -104,7 +104,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       responses:
         "200":
           description: Submission detail
@@ -129,7 +128,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       responses:
         "200":
           description: Chat messages
@@ -149,7 +147,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       requestBody:
         required: true
         content:
@@ -269,7 +266,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       responses:
         "200":
           description: Submission detail
@@ -367,7 +363,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
         level:
           type: string
           enum: [100L, 300L, 500L]
@@ -394,7 +389,6 @@ components:
           enum: [Digital Literacy, Web and Software Engineering]
         assignmentId:
           type: string
-          format: uuid
         fileName:
           type: string
           minLength: 1
@@ -407,7 +401,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
         studentName:
           type: string
         studentId:
@@ -452,7 +445,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
         studentName:
           type: string
         studentId:
@@ -500,7 +492,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
         role:
           type: string
           enum: [student, assistant]
@@ -518,7 +509,7 @@ components:
         assistantMessage:
           $ref: "#/components/schemas/ChatMessage"
         messagesRemaining:
-          type: integer
+          type: number
       required: [userMessage, assistantMessage, messagesRemaining]
     InstructorLoginInput:
       type: object
@@ -537,9 +528,9 @@ components:
       type: object
       properties:
         totalSubmissions:
-          type: integer
+          type: number
         flaggedSubmissions:
-          type: integer
+          type: number
         averageScore:
           type: number
         recentSubmissions:
@@ -552,7 +543,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
         title:
           type: string
         summary:

@@ -1,23 +1,7 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
+import { ArrowLeft, Compass } from 'lucide-react';
+import { Link } from 'wouter';
+import { Brand } from '@/components/shared';
 
 export default function NotFound() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">
-              404 Page Not Found
-            </h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  return <div className="noise grid min-h-[100dvh] place-items-center bg-[#f7f3ea] px-5"><div className="w-full max-w-[560px]"><Brand /><div className="mt-16"><p className="eyebrow">Lost in the studio</p><h1 className="mt-3 font-display text-6xl font-bold tracking-[-.05em] text-[#162239] sm:text-8xl">404<span className="text-[#d95e49]">.</span></h1><p className="mt-5 max-w-md text-lg leading-relaxed text-[#687386]">This page wandered off between two commits. The good news: your work is still here.</p><Link href="/" className="btn-dark mt-8" data-testid="link-return-home"><ArrowLeft size={16} /> Return to studio</Link></div><div className="mt-20 flex items-center gap-3 text-xs text-[#7b8491]"><Compass size={15} /> EduRithm keeps the useful things close.</div></div></div>;
 }
