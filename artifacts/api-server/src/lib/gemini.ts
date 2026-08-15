@@ -47,7 +47,8 @@ Respond with ONLY the JSON object, no markdown fences.`;
     config: { responseMimeType: "application/json", maxOutputTokens: 2048 },
   });
 
-  const raw = response.text ?? "{}";
+  // Strip markdown fences in case the model ignores the MIME type hint.
+  const raw = (response.text ?? "{}").replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
   const parsed = JSON.parse(raw) as GradingResult;
   return {
     score: Math.min(100, Math.max(0, Math.round(Number(parsed.score) || 0))),
