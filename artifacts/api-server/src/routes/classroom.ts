@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { assignmentsTable, submissionsTable, geminiCallsTable } from "@workspace/db";
 import { ImportClassroomSubmissionsBody } from "@workspace/api-zod";
-import { gradeHtml } from "../lib/gemini";
+import { gradeBatch, type BatchSubmissionInput } from "../lib/gemini";
 
 const router: IRouter = Router();
 
@@ -374,124 +374,160 @@ router.post("/classroom/import", async (req, res) => {
       .returning();
   }
 
-  const results: unknown[] = [];
+  const skipped: unknown[] = [];
 
-  for (const sub of toImport) {
-    const studentName = nameMap[sub.userId] ?? sub.userId;
-    const attachments: any[] = sub.assignmentSubmission?.attachments ?? [];
-    const picked = pickAttachment(attachments);
+  // ── Step 1: Download all files from Drive in parallel ───────────────────
+  type ReadySub = {
+    sub: any;
+    studentName: string;
+    fileName: string;
+    codeContent: string;
+  };
 
-    if (!picked?.driveFile) {
-      const reason = attachments.length === 0
-        ? "Student has not attached any file"
-        : "No supported file attachment found (link-only submissions cannot be graded)";
-      req.log.warn({ submissionId: sub.id }, reason);
-      results.push({ skipped: true, studentName, reason });
-      continue;
-    }
+  const downloadResults = await Promise.all(
+    toImport.map(async (sub) => {
+      const studentName = nameMap[sub.userId] ?? sub.userId;
+      const attachments: any[] = sub.assignmentSubmission?.attachments ?? [];
+      const picked = pickAttachment(attachments);
 
-    // Download from Drive (handles Google Docs export automatically)
-    let codeContent: string;
-    try {
-      const dl = await downloadDriveFile(
-        picked.driveFile.id,
-        picked.driveFile.mimeType,
-        tok.accessToken
-      );
-      if (dl.skipped) {
-        req.log.warn({ submissionId: sub.id, reason: dl.reason }, "Drive download skipped");
-        results.push({ skipped: true, studentName, reason: dl.reason });
-        continue;
+      if (!picked?.driveFile) {
+        const reason =
+          attachments.length === 0
+            ? "Student has not attached any file"
+            : "No supported file attachment (link-only submissions cannot be graded)";
+        return { studentName, skipped: true as const, reason };
       }
-      codeContent = dl.content;
-    } catch (err) {
-      req.log.error({ err }, "Drive fetch error");
-      results.push({ skipped: true, studentName, reason: "Drive fetch threw an unexpected error" });
-      continue;
-    }
 
-    const fileName = picked.driveFile.title as string;
+      try {
+        const dl = await downloadDriveFile(
+          picked.driveFile.id,
+          picked.driveFile.mimeType,
+          tok.accessToken
+        );
+        if (dl.skipped) return { studentName, skipped: true as const, reason: dl.reason };
+        return { sub, studentName, fileName: picked.driveFile.title as string, codeContent: dl.content, skipped: false as const };
+      } catch {
+        return { studentName, skipped: true as const, reason: "Drive fetch error" };
+      }
+    })
+  );
 
-    // Insert submission record, grade it, update
-    const [submission] = await db
-      .insert(submissionsTable)
-      .values({
-        studentName,
-        studentId: sub.userId,
-        level: "300L",
-        track: "Web and Software Engineering",
-        assignmentId: assignment.id,
-        fileName,
-        codeContent,
-        status: "queued",
-        flagged: true,
-        issuesFound: [],
-        // Store Classroom back-reference so we can post grades later
-        classroomSubmissionId: sub.id,
-        classroomCourseId: courseId,
-        classroomCourseWorkId: courseworkId,
-      })
-      .returning();
+  for (const r of downloadResults) {
+    if (r.skipped) skipped.push({ skipped: true, studentName: r.studentName, reason: r.reason });
+  }
 
-    try {
-      const graded = await gradeHtml(courseworkTitle, fileName, codeContent);
-      const flagged = graded.score < 60 || !graded.meets_requirements;
+  const ready = downloadResults.filter((r): r is ReadySub & { skipped: false } => !r.skipped);
 
-      await db.insert(geminiCallsTable).values({
-        submissionId: submission.id,
-        kind: "grading",
-        request: `${courseworkTitle}\n---\n${codeContent.slice(0, 500)}`,
-        response: JSON.stringify(graded),
-      });
+  if (ready.length === 0) {
+    res.status(201).json({ results: [], skipped, class_insights: null });
+    return;
+  }
 
+  // ── Step 2: Insert all submissions to DB (status: queued) ────────────────
+  const inserted = await Promise.all(
+    ready.map(({ sub, studentName, fileName, codeContent }) =>
+      db
+        .insert(submissionsTable)
+        .values({
+          studentName,
+          studentId: sub.userId,
+          level: "300L",
+          track: "Web and Software Engineering",
+          assignmentId: assignment.id,
+          fileName,
+          codeContent,
+          status: "queued",
+          flagged: true,
+          issuesFound: [],
+          classroomSubmissionId: sub.id,
+          classroomCourseId: courseId,
+          classroomCourseWorkId: courseworkId,
+        })
+        .returning()
+        .then(([row]) => row)
+    )
+  );
+
+  // ── Step 3: Single Gemini batch call for all submissions ─────────────────
+  const batchInputs: BatchSubmissionInput[] = ready.map((r, i) => ({
+    index: i,
+    studentName: r.studentName,
+    fileName: r.fileName,
+    codeContent: r.codeContent,
+  }));
+
+  let batchResult: Awaited<ReturnType<typeof gradeBatch>>;
+  try {
+    batchResult = await gradeBatch(courseworkTitle, batchInputs);
+  } catch (err) {
+    req.log.error({ err }, "gradeBatch failed — marking all as failed");
+    await Promise.all(
+      inserted.map((row) =>
+        db.update(submissionsTable).set({ status: "failed" }).where(eq(submissionsTable.id, row.id))
+      )
+    );
+    res.status(201).json({ results: [], skipped, class_insights: null });
+    return;
+  }
+
+  // Log the batch call against the first submission (representative)
+  await db.insert(geminiCallsTable).values({
+    submissionId: inserted[0].id,
+    kind: "grading",
+    request: `BATCH(${ready.length}) ${courseworkTitle}`,
+    response: JSON.stringify(batchResult),
+  });
+
+  // ── Step 4: Update each submission with its grade ────────────────────────
+  const gradeMap = new Map(batchResult.grades.map((g) => [g.index, g]));
+
+  const updatedRows = await Promise.all(
+    inserted.map(async (row, i) => {
+      const grade = gradeMap.get(i);
+      if (!grade) {
+        await db.update(submissionsTable).set({ status: "failed" }).where(eq(submissionsTable.id, row.id));
+        return null;
+      }
+      const flagged = grade.score < 60 || !grade.meets_requirements;
       const [updated] = await db
         .update(submissionsTable)
         .set({
-          score: graded.score,
-          meetsRequirements: graded.meets_requirements,
-          issuesFound: graded.issues_found,
-          explanation: graded.explanation,
-          correctedSnippet: graded.corrected_snippet,
+          score: grade.score,
+          meetsRequirements: grade.meets_requirements,
+          issuesFound: grade.issues_found,
+          explanation: grade.explanation,
+          correctedSnippet: grade.corrected_snippet,
           flagged,
           status: "graded",
         })
-        .where(eq(submissionsTable.id, submission.id))
+        .where(eq(submissionsTable.id, row.id))
         .returning();
+      return updated;
+    })
+  );
 
-      results.push({
-        id: updated.id,
-        studentName: updated.studentName,
-        studentId: updated.studentId,
-        level: updated.level,
-        track: updated.track,
-        assignment: {
-          id: assignment.id,
-          level: assignment.level,
-          track: assignment.track,
-          prompt: assignment.prompt,
-        },
-        fileName: updated.fileName,
-        codeContent: updated.codeContent,
-        score: updated.score,
-        meetsRequirements: updated.meetsRequirements,
-        issuesFound: (updated.issuesFound as string[]) ?? [],
-        explanation: updated.explanation,
-        correctedSnippet: updated.correctedSnippet,
-        flagged: updated.flagged,
-        status: updated.status,
-        createdAt: updated.createdAt.toISOString(),
-        fixItUrl: `/fix/${updated.id}`,
-      });
-    } catch (err) {
-      req.log.error({ err, submissionId: submission.id }, "Classroom grading error");
-      await db
-        .update(submissionsTable)
-        .set({ status: "failed" })
-        .where(eq(submissionsTable.id, submission.id));
-    }
-  }
+  const results = updatedRows
+    .filter((r): r is NonNullable<typeof r> => r !== null)
+    .map((updated) => ({
+      id: updated.id,
+      studentName: updated.studentName,
+      studentId: updated.studentId,
+      level: updated.level,
+      track: updated.track,
+      assignment: { id: assignment.id, level: assignment.level, track: assignment.track, prompt: assignment.prompt },
+      fileName: updated.fileName,
+      score: updated.score,
+      meetsRequirements: updated.meetsRequirements,
+      issuesFound: (updated.issuesFound as string[]) ?? [],
+      explanation: updated.explanation,
+      correctedSnippet: updated.correctedSnippet,
+      flagged: updated.flagged,
+      status: updated.status,
+      createdAt: updated.createdAt.toISOString(),
+      fixItUrl: `/fix/${updated.id}`,
+    }));
 
-  res.status(201).json(results);
+  res.status(201).json({ results, skipped, class_insights: batchResult.class_insights });
 });
 
 // ── POST /classroom/post-grades ────────────────────────────────────────────

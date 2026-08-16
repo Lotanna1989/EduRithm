@@ -85,6 +85,103 @@ export interface GradingResult {
   corrected_snippet: string;
 }
 
+// ── Batch grading ──────────────────────────────────────────────────────────
+// Sends up to ~30 submissions in one Gemini call so the model can grade
+// consistently relative to the whole class and surface class-wide patterns.
+
+export interface BatchSubmissionInput {
+  index: number;         // 0-based, used to match response back to submission
+  studentName: string;
+  fileName: string;
+  codeContent: string;
+}
+
+export interface BatchGradingResult extends GradingResult {
+  index: number;
+}
+
+export interface ClassInsights {
+  common_mistakes: string[];   // issues seen in >1 submission
+  class_summary: string;       // 2-3 sentence overview of the cohort's work
+  top_recommendation: string;  // the single most impactful thing to teach next
+}
+
+export interface BatchGradingResponse {
+  grades: BatchGradingResult[];
+  class_insights: ClassInsights;
+}
+
+export async function gradeBatch(
+  assignmentPrompt: string,
+  submissions: BatchSubmissionInput[]
+): Promise<BatchGradingResponse> {
+  const submissionsBlock = submissions
+    .map(
+      (s) =>
+        `--- SUBMISSION ${s.index} | Student: ${s.studentName} | File: ${s.fileName} ---\n\`\`\`\n${s.codeContent}\n\`\`\``
+    )
+    .join("\n\n");
+
+  const prompt = `You are an expert HTML/CSS/JavaScript instructor grading a class of ${submissions.length} student submission(s).
+Grade ALL submissions consistently — a score of 70 from one student should mean the same standard as 70 from another.
+
+ASSIGNMENT PROMPT:
+${assignmentPrompt}
+
+${submissionsBlock}
+
+Return ONLY valid JSON with exactly this shape:
+{
+  "grades": [
+    {
+      "index": <integer matching the submission index above>,
+      "score": <integer 0-100>,
+      "meets_requirements": <boolean, true if score >= 60 and core requirements present>,
+      "issues_found": [<short actionable strings>],
+      "explanation": "<2-4 sentences: score rationale + most important improvement>",
+      "corrected_snippet": "<short corrected HTML snippet for the main fix, or empty string>"
+    }
+  ],
+  "class_insights": {
+    "common_mistakes": [<issues that appeared in more than one submission>],
+    "class_summary": "<2-3 sentences about overall class performance>",
+    "top_recommendation": "<the single most impactful concept to re-teach>"
+  }
+}
+
+Students are beginners — structural mistakes are expected. Grade fairly but helpfully.
+Respond with ONLY the JSON object. No markdown fences, no extra text.`;
+
+  // Large output budget: ~600 tokens per submission + 500 for class insights
+  const maxTokens = Math.min(32768, submissions.length * 700 + 600);
+
+  const raw = await callGemini(
+    [{ role: "user", parts: [{ text: prompt }] }],
+    { json: true, maxTokens }
+  );
+
+  const parsed = JSON.parse(stripJsonFences(raw)) as BatchGradingResponse;
+
+  const grades: BatchGradingResult[] = (parsed.grades ?? []).map((g) => ({
+    index: Number(g.index ?? 0),
+    score: Math.min(100, Math.max(0, Math.round(Number(g.score) || 0))),
+    meets_requirements: Boolean(g.meets_requirements),
+    issues_found: Array.isArray(g.issues_found) ? g.issues_found.map(String) : [],
+    explanation: String(g.explanation || ""),
+    corrected_snippet: String(g.corrected_snippet || ""),
+  }));
+
+  const ci = parsed.class_insights ?? {};
+  return {
+    grades,
+    class_insights: {
+      common_mistakes: Array.isArray(ci.common_mistakes) ? ci.common_mistakes.map(String) : [],
+      class_summary: String(ci.class_summary || ""),
+      top_recommendation: String(ci.top_recommendation || ""),
+    },
+  };
+}
+
 export async function gradeHtml(
   assignmentPrompt: string,
   fileName: string,

@@ -69,6 +69,8 @@ function ClassroomPanel() {
   const [courseworkId, setCourseworkId] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importResults, setImportResults] = useState<any[] | null>(null);
+  const [importSkipped, setImportSkipped] = useState<any[]>([]);
+  const [classInsights, setClassInsights] = useState<any | null>(null);
   const [gradeBackState, setGradeBackState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
   const [gradeBackResults, setGradeBackResults] = useState<any[]>([]);
 
@@ -87,10 +89,16 @@ function ClassroomPanel() {
 
   const importMutation = useImportClassroomSubmissions({
     mutation: {
-      onSuccess: (data) => {
-        setImportResults(data as any[]);
+      onSuccess: (data: any) => {
+        // API now returns { results, skipped, class_insights }
+        // Fall back to treating data as a plain array for backwards compat
+        const results = Array.isArray(data) ? data : (data?.results ?? []);
+        setImportResults(results);
+        setImportSkipped(Array.isArray(data) ? [] : (data?.skipped ?? []));
+        setClassInsights(Array.isArray(data) ? null : (data?.class_insights ?? null));
+        setGradeBackState('idle');
+        setGradeBackResults([]);
         setSelected(new Set());
-        // Refresh the main submissions table
         qc.invalidateQueries({ queryKey: getListInstructorSubmissionsQueryKey() });
         qc.invalidateQueries({ queryKey: getGetInstructorSummaryQueryKey() });
       },
@@ -348,62 +356,108 @@ function ClassroomPanel() {
                 </div>
               )}
 
-              {/* Import results + Send-back panel */}
-              {importResults && importResults.length > 0 && (
+              {/* Import results + class insights + send-back */}
+              {((importResults && importResults.length > 0) || importSkipped.length > 0) && (
                 <div className="space-y-4" data-testid="section-import-results">
+
                   {/* Graded rows */}
-                  <div className="card-lift overflow-hidden">
-                    <div className="flex items-center justify-between gap-3 border-b border-[#e6e1d7] bg-[#edf4c9] px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <Check size={14} className="text-[#3d5718]" />
-                        <p className="text-xs font-bold text-[#3d5718]">
-                          {importResults.length} submission{importResults.length !== 1 ? 's' : ''} graded by Gemini
-                        </p>
+                  {importResults && importResults.length > 0 && (
+                    <div className="card-lift overflow-hidden">
+                      <div className="flex items-center justify-between gap-3 border-b border-[#e6e1d7] bg-[#edf4c9] px-5 py-3">
+                        <div className="flex items-center gap-2">
+                          <Check size={14} className="text-[#3d5718]" />
+                          <p className="text-xs font-bold text-[#3d5718]">
+                            {importResults.length} submission{importResults.length !== 1 ? 's' : ''} graded by Gemini
+                            {importSkipped.length > 0 && ` · ${importSkipped.length} skipped`}
+                          </p>
+                        </div>
+                        {gradeBackState !== 'done' && (
+                          <button
+                            className="btn-dark text-xs px-3 py-1.5"
+                            onClick={doSendGrades}
+                            disabled={gradeBackState === 'sending'}
+                            data-testid="button-send-grades"
+                          >
+                            {gradeBackState === 'sending'
+                              ? <><Loader2 size={13} className="animate-spin" /> Sending…</>
+                              : <><Send size={13} /> Send grades to Classroom</>}
+                          </button>
+                        )}
                       </div>
-                      {/* Send-back button */}
-                      {gradeBackState !== 'done' && (
-                        <button
-                          className="btn-dark text-xs px-3 py-1.5"
-                          onClick={doSendGrades}
-                          disabled={gradeBackState === 'sending'}
-                          data-testid="button-send-grades"
-                        >
-                          {gradeBackState === 'sending'
-                            ? <><Loader2 size={13} className="animate-spin" /> Sending…</>
-                            : <><Send size={13} /> Send grades to Classroom</>}
-                        </button>
-                      )}
-                    </div>
 
-                    <div className="divide-y divide-[#e6e1d7]">
-                      {importResults.map((r: any) => {
-                        const gbr = gradeBackResults.find((g: any) => g.eduRithmId === r.id);
-                        return (
-                          <div key={r.id} className="flex items-center gap-4 px-5 py-3">
-                            <span className="font-display text-xl font-bold text-[#162239] w-12 shrink-0">{r.score}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-sm text-[#162239] truncate">{r.studentName}</p>
-                              <p className="font-mono text-[.68rem] text-[#7b8491] truncate">{r.fileName}</p>
+                      <div className="divide-y divide-[#e6e1d7]">
+                        {importResults.map((r: any) => {
+                          const gbr = gradeBackResults.find((g: any) => g.eduRithmId === r.id);
+                          return (
+                            <div key={r.id} className="flex items-center gap-4 px-5 py-3">
+                              <span className="font-display text-xl font-bold text-[#162239] w-12 shrink-0">{r.score}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-sm text-[#162239] truncate">{r.studentName}</p>
+                                <p className="font-mono text-[.68rem] text-[#7b8491] truncate">{r.fileName}</p>
+                              </div>
+                              <StatusPill status={r.status} flagged={r.flagged} />
+                              {gbr && (
+                                gbr.sent
+                                  ? <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#e8f0fe] px-2 py-0.5 text-[.65rem] font-bold text-[#1a3a8c]">
+                                      <Check size={9} /> Sent
+                                    </span>
+                                  : <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#f9ddd5] px-2 py-0.5 text-[.65rem] font-bold text-[#9d3f2b]">
+                                      ✕ Failed
+                                    </span>
+                              )}
+                              <Link href={`/fix/${r.id}`} className="btn-quiet text-xs shrink-0">Open →</Link>
                             </div>
-                            <StatusPill status={r.status} flagged={r.flagged} />
-                            {/* Grade-back status badge */}
-                            {gbr && (
-                              gbr.sent
-                                ? <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#e8f0fe] px-2 py-0.5 text-[.65rem] font-bold text-[#1a3a8c]">
-                                    <Check size={9} /> Sent
-                                  </span>
-                                : <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#f9ddd5] px-2 py-0.5 text-[.65rem] font-bold text-[#9d3f2b]">
-                                    ✕ Failed
-                                  </span>
-                            )}
-                            <Link href={`/fix/${r.id}`} className="btn-quiet text-xs shrink-0">Open →</Link>
+                          );
+                        })}
+                        {/* Skipped rows */}
+                        {importSkipped.map((s: any, i: number) => (
+                          <div key={i} className="flex items-center gap-4 px-5 py-3 opacity-50">
+                            <span className="font-display text-xl font-bold text-[#7b8491] w-12 shrink-0">—</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-sm text-[#162239] truncate">{s.studentName}</p>
+                              <p className="text-[.68rem] text-[#7b8491] truncate">{s.reason}</p>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-[#f0ede8] px-2 py-0.5 text-[.65rem] font-bold text-[#7b8491]">Skipped</span>
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Send-back summary */}
+                  {/* Class insights panel */}
+                  {classInsights && (classInsights.class_summary || classInsights.common_mistakes?.length > 0) && (
+                    <div className="card-lift overflow-hidden" data-testid="section-class-insights">
+                      <div className="border-b border-[#e6e1d7] bg-[#f5f0e8] px-5 py-3">
+                        <p className="text-xs font-bold text-[#162239] uppercase tracking-wide">Gemini Class Insights</p>
+                      </div>
+                      <div className="px-5 py-4 space-y-4">
+                        {classInsights.class_summary && (
+                          <p className="text-sm text-[#162239]">{classInsights.class_summary}</p>
+                        )}
+                        {classInsights.common_mistakes?.length > 0 && (
+                          <div>
+                            <p className="text-xs font-bold text-[#536078] uppercase tracking-wide mb-2">Common mistakes across the class</p>
+                            <ul className="space-y-1">
+                              {classInsights.common_mistakes.map((m: string, i: number) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-[#162239]">
+                                  <span className="mt-1 shrink-0 w-1.5 h-1.5 rounded-full bg-[#e05c2a]" />
+                                  {m}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {classInsights.top_recommendation && (
+                          <div className="rounded-lg bg-[#edf4c9] px-4 py-3">
+                            <p className="text-xs font-bold text-[#3d5718] uppercase tracking-wide mb-1">Top recommendation</p>
+                            <p className="text-sm text-[#162239]">{classInsights.top_recommendation}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Grade-back done summary */}
                   {gradeBackState === 'done' && (
                     <div className="rounded-xl border border-[#b6d0f5] bg-[#e8f0fe] px-5 py-4" data-testid="section-gradeback-result">
                       <p className="font-bold text-sm text-[#162239]">
@@ -411,12 +465,12 @@ function ClassroomPanel() {
                         Grades sent to Google Classroom
                       </p>
                       <p className="mt-1 text-xs text-[#536078]">
-                        {gradeBackResults.filter((g: any) => g.sent).length} of {gradeBackResults.length} submissions graded and returned to students.
-                        Students will see their score in Classroom. Detailed feedback (issues found, corrections) is available here in EduRithm — share the <strong>/fix/…</strong> link for the full walkthrough.
+                        {gradeBackResults.filter((g: any) => g.sent).length} of {gradeBackResults.length} returned to students.
+                        Detailed feedback lives in EduRithm — share the <strong>/fix/…</strong> link for the full walkthrough.
                       </p>
                       {gradeBackResults.some((g: any) => g.error) && (
                         <p className="mt-2 text-xs text-[#9d3f2b] font-bold">
-                          ⚠ Some submissions failed — you may need to reconnect with updated permissions (Disconnect → Connect Classroom again to grant grade-write access).
+                          ⚠ Some failed — reconnect Classroom to grant grade-write access, then retry.
                         </p>
                       )}
                     </div>
