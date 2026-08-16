@@ -1,8 +1,138 @@
-import { useMemo, useState } from 'react';
-import { BookOpen, Check, Code2, ExternalLink, Loader2, Search, Sparkles } from 'lucide-react';
-import { Link } from 'wouter';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  BookOpen,
+  Check,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  Search,
+  Sparkles,
+} from 'lucide-react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useListLearnConcepts, getListLearnConceptsQueryKey, useJoinWaitlist } from '@workspace/api-client-react';
 import { ErrorState, PageTitle, SkeletonBlock, StudentNav, EmptyState } from '@/components/shared';
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+function isHtml(code: string) {
+  const t = code.trimStart().toLowerCase();
+  return t.startsWith('<!doctype') || t.startsWith('<html');
+}
+
+function filename(title: string, code: string) {
+  return isHtml(code) ? 'index.html' : 'example.py';
+}
+
+// ─── Live IDE ────────────────────────────────────────────────────────────────
+
+function LiveIde({ original, title }: { original: string; title: string }) {
+  const [code, setCode] = useState(original);
+  const html = isHtml(original);
+
+  // Reset editor when concept changes
+  useEffect(() => {
+    setCode(original);
+  }, [original]);
+
+  return (
+    <div className="mt-7 overflow-hidden rounded-xl border border-[#dedbd2] bg-[#162239]" data-testid="ide-container">
+      {/* Title bar */}
+      <div className="flex items-center justify-between border-b border-[#40506a] bg-[#0f1a2b] px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#ef775b]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#d7f34b]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#4f6177]" />
+          <span className="ml-2 font-mono text-[.65rem] text-[#7b91a8]">{filename(title, original)}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {!html && (
+            <span className="rounded-full bg-[#1e2d45] px-2.5 py-1 font-mono text-[.6rem] text-[#9db3c8]">
+              Python runs server-side — edit &amp; read below
+            </span>
+          )}
+          <button
+            onClick={() => setCode(original)}
+            className="flex items-center gap-1.5 rounded-lg border border-[#40506a] bg-transparent px-2.5 py-1 font-mono text-[.65rem] text-[#9db3c8] transition hover:border-[#7b91a8] hover:text-[#f7f3ea]"
+            title="Reset to original"
+            data-testid="button-ide-reset"
+          >
+            <RefreshCw size={10} /> Reset
+          </button>
+        </div>
+      </div>
+
+      {html ? (
+        /* ── HTML: resizable editor | browser preview ── */
+        <PanelGroup direction="horizontal" className="min-h-[420px]">
+          {/* Editor panel */}
+          <Panel defaultSize={50} minSize={25}>
+            <div className="flex h-full flex-col">
+              <div className="flex items-center gap-2 border-b border-[#40506a] bg-[#162239] px-4 py-2">
+                <span className="font-mono text-[.6rem] font-bold uppercase tracking-wider text-[#5b7a9a]">Editor</span>
+              </div>
+              <textarea
+                className="code-area flex-1 w-full resize-none border-0 bg-[#162239] p-5 font-mono text-[.76rem] leading-6 text-[#e5ebdf] outline-none"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                spellCheck={false}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                data-testid="input-ide-editor"
+              />
+            </div>
+          </Panel>
+
+          {/* Drag handle */}
+          <PanelResizeHandle className="group w-1.5 bg-[#40506a] transition hover:bg-[#d7f34b] active:bg-[#d7f34b]">
+            <div className="mx-auto mt-[50%] h-6 w-0.5 rounded-full bg-[#5b7a9a] opacity-0 transition group-hover:opacity-100" />
+          </PanelResizeHandle>
+
+          {/* Preview panel */}
+          <Panel defaultSize={50} minSize={25}>
+            <div className="flex h-full flex-col">
+              <div className="flex items-center gap-2 border-b border-[#40506a] bg-[#0f1a2b] px-4 py-2">
+                <span className="font-mono text-[.6rem] font-bold uppercase tracking-wider text-[#5b7a9a]">Preview</span>
+                <span className="ml-auto flex items-center gap-1 font-mono text-[.6rem] text-[#3d7a40]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#8da923]" /> live
+                </span>
+              </div>
+              <iframe
+                title="Live HTML preview"
+                srcDoc={code}
+                className="flex-1 w-full bg-white"
+                sandbox="allow-scripts"
+                data-testid="frame-ide-preview"
+              />
+            </div>
+          </Panel>
+        </PanelGroup>
+      ) : (
+        /* ── Python: editable code, no iframe (can't run in browser) ── */
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2 border-b border-[#40506a] bg-[#162239] px-4 py-2">
+            <span className="font-mono text-[.6rem] font-bold uppercase tracking-wider text-[#5b7a9a]">Code</span>
+            <span className="ml-auto font-mono text-[.6rem] text-[#5b7a9a]">
+              Edit freely — changes won't be graded here
+            </span>
+          </div>
+          <textarea
+            className="code-area min-h-[340px] w-full resize-y border-0 bg-[#162239] p-5 font-mono text-[.76rem] leading-6 text-[#e5ebdf] outline-none"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            data-testid="input-ide-editor"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Coming Soon / Waitlist ──────────────────────────────────────────────────
 
 const AREAS = [
   { value: 'IoT', label: 'Internet of Things (IoT)' },
@@ -62,7 +192,6 @@ function ComingSoonSection() {
             out when your area of interest goes live.
           </p>
 
-          {/* Expansion areas */}
           <div className="mt-6 flex flex-wrap gap-2">
             {AREAS.map((area) => (
               <span
@@ -74,7 +203,6 @@ function ComingSoonSection() {
             ))}
           </div>
 
-          {/* Divider */}
           <div className="my-8 border-t border-[#2d3f57]" />
 
           {submitted ? (
@@ -96,7 +224,6 @@ function ComingSoonSection() {
                 Join the waitlist
               </p>
 
-              {/* Name + Email */}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-bold text-[#9db3c8] mb-1.5" htmlFor="waitlist-name">
@@ -127,7 +254,6 @@ function ComingSoonSection() {
                 </div>
               </div>
 
-              {/* Interests */}
               <div className="mt-4">
                 <p className="text-xs font-bold text-[#9db3c8] mb-2.5">Area of interest</p>
                 <div className="flex flex-wrap gap-2">
@@ -153,14 +279,12 @@ function ComingSoonSection() {
                 </div>
               </div>
 
-              {/* Error */}
               {join.isError && (
                 <p className="mt-3 text-sm text-[#ef775b]" data-testid="status-waitlist-error">
                   Something went wrong. Please try again.
                 </p>
               )}
 
-              {/* Submit */}
               <button
                 className="btn-primary mt-6"
                 disabled={!name.trim() || !email.trim() || interests.length === 0 || join.isPending}
@@ -181,10 +305,13 @@ function ComingSoonSection() {
   );
 }
 
+// ─── Page ────────────────────────────────────────────────────────────────────
+
 export default function LearnPage() {
   const conceptsQuery = useListLearnConcepts({ query: { queryKey: getListLearnConceptsQueryKey() } });
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+
   const concepts = conceptsQuery.data ?? [];
   const filtered = useMemo(
     () =>
@@ -198,11 +325,11 @@ export default function LearnPage() {
   return (
     <div className="noise app-shell bg-[#f7f3ea]">
       <StudentNav />
-      <main className="mx-auto max-w-[1240px] px-5 pb-20 pt-10 lg:px-8 lg:pt-14">
+      <main className="mx-auto max-w-[1440px] px-5 pb-20 pt-10 lg:px-8 lg:pt-14">
         <PageTitle
           eyebrow="The quiet corner"
           title="Learn in layers."
-          detail="Concepts, examples, and the language to make feedback feel useful. Start anywhere. Come back often."
+          detail="Pick a concept, read the explanation, then edit the code and watch it come alive in the preview panel."
         >
           <div className="relative w-full sm:w-64">
             <Search size={16} className="absolute left-3 top-3 text-[#7b8491]" />
@@ -216,25 +343,7 @@ export default function LearnPage() {
           </div>
         </PageTitle>
 
-        {/* IDE callout */}
-        <Link
-          to="/review"
-          className="mt-8 flex items-center gap-4 rounded-2xl border border-[#9ebc28]/40 bg-[#edf4c9] px-5 py-4 transition hover:border-[#9ebc28] hover:bg-[#e4efb8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#9ebc28]"
-          data-testid="banner-ide"
-        >
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#162239] text-[#d7f34b]">
-            <Code2 size={18} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-bold text-[#162239]">Try the code yourself — there's a live editor</p>
-            <p className="text-sm text-[#536078]">
-              Paste any HTML into the EduRithm code playground and get instant AI feedback on what you wrote.
-            </p>
-          </div>
-          <ExternalLink size={16} className="shrink-0 text-[#8da923]" />
-        </Link>
-
-        <div className="mt-10 grid gap-6 lg:grid-cols-[.75fr_1.25fr]">
+        <div className="mt-10 grid gap-6 lg:grid-cols-[280px_1fr]">
           {conceptsQuery.isLoading ? (
             <>
               <div className="space-y-3">
@@ -242,7 +351,7 @@ export default function LearnPage() {
                 <SkeletonBlock className="h-24" />
                 <SkeletonBlock className="h-24" />
               </div>
-              <SkeletonBlock className="h-[500px]" />
+              <SkeletonBlock className="h-[600px]" />
             </>
           ) : conceptsQuery.isError ? (
             <div className="lg:col-span-2">
@@ -254,72 +363,58 @@ export default function LearnPage() {
             </div>
           ) : (
             <>
-              {/* Sidebar list */}
-              <div className="space-y-3">
+              {/* ── Sidebar list ── */}
+              <div className="space-y-2.5 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto lg:pr-1">
                 {filtered.map((concept, index) => (
                   <button
                     key={concept.id}
-                    className={`focus-ring card-lift flex w-full items-start gap-4 p-5 text-left ${active?.id === concept.id ? 'border-[#9ebc28] bg-[#edf4c9]' : ''}`}
+                    className={`focus-ring card-lift flex w-full items-start gap-3 p-4 text-left ${
+                      active?.id === concept.id ? 'border-[#9ebc28] bg-[#edf4c9]' : ''
+                    }`}
                     onClick={() => setSelected(concept.id)}
                     data-testid={`button-concept-${concept.id}`}
                   >
-                    <span className="font-mono text-xs font-bold text-[#8da923]">
+                    <span className="mt-0.5 shrink-0 font-mono text-xs font-bold text-[#8da923]">
                       {String(index + 1).padStart(2, '0')}
                     </span>
                     <span>
-                      <span className="block font-display text-lg font-bold text-[#162239]">{concept.title}</span>
-                      <span className="mt-1 block text-sm leading-relaxed text-[#687386]">{concept.summary}</span>
+                      <span className="block font-display text-base font-bold text-[#162239]">{concept.title}</span>
+                      <span className="mt-0.5 block text-sm leading-snug text-[#687386]">{concept.summary}</span>
                     </span>
                   </button>
                 ))}
               </div>
 
-              {/* Detail panel */}
+              {/* ── Detail panel ── */}
               {active && (
-                <article className="card-lift p-6 sm:p-9" data-testid={`article-concept-${active.id}`}>
-                  <div className="flex items-start justify-between gap-5">
+                <article className="card-lift overflow-hidden p-0" data-testid={`article-concept-${active.id}`}>
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-5 border-b border-[#dedbd2] px-7 py-6">
                     <div>
-                      <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#162239] px-3 py-1.5 text-xs font-bold text-[#d7f34b]">
+                      <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#162239] px-3 py-1.5 text-xs font-bold text-[#d7f34b]">
                         <BookOpen size={13} /> concept note
                       </div>
-                      <h2 className="font-display text-3xl font-bold tracking-tight text-[#162239] sm:text-4xl">
+                      <h2 className="font-display text-2xl font-bold tracking-tight text-[#162239] sm:text-3xl">
                         {active.title}
                       </h2>
+                      <p className="mt-2 text-base leading-relaxed text-[#536078]">{active.explanation}</p>
                     </div>
                     {active.youtubeUrl && (
                       <a
                         href={active.youtubeUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="btn-outline min-h-9 px-3 text-xs"
+                        className="btn-outline shrink-0 min-h-9 px-3 text-xs"
                         data-testid="link-concept-video"
                       >
-                        <ExternalLink size={14} /> Watch example
+                        <ExternalLink size={14} /> Watch video
                       </a>
                     )}
                   </div>
-                  <p className="mt-6 text-lg leading-relaxed text-[#536078]">{active.explanation}</p>
-                  <div className="mt-7 overflow-hidden rounded-xl bg-[#162239]">
-                    <div className="flex items-center gap-2 border-b border-[#40506a] px-4 py-3">
-                      <span className="h-2 w-2 rounded-full bg-[#ef775b]" />
-                      <span className="h-2 w-2 rounded-full bg-[#d7f34b]" />
-                      <span className="h-2 w-2 rounded-full bg-[#9da9b8]" />
-                      <span className="ml-2 font-mono text-[.65rem] text-[#aeb9c9]">
-                        {active.title.toLowerCase().includes('python') ||
-                         active.title.toLowerCase().includes('variable') ||
-                         active.title.toLowerCase().includes('print') ||
-                         active.title.toLowerCase().includes('loop') ||
-                         active.title.toLowerCase().includes('if')
-                          ? 'example.py'
-                          : 'example.html'}
-                      </span>
-                    </div>
-                    <pre
-                      className="overflow-x-auto p-5 font-mono text-xs leading-6 text-[#dce6d7]"
-                      data-testid="text-concept-code"
-                    >
-                      <code>{active.codeExample}</code>
-                    </pre>
+
+                  {/* Live IDE */}
+                  <div className="px-7 pb-7">
+                    <LiveIde key={active.id} original={active.codeExample} title={active.title} />
                   </div>
                 </article>
               )}
