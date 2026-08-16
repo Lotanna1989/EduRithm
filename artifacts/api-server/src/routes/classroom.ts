@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { assignmentsTable, submissionsTable, geminiCallsTable } from "@workspace/db";
 import { ImportClassroomSubmissionsBody } from "@workspace/api-zod";
@@ -16,7 +16,9 @@ const REDIRECT_URI = `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/callback
 const SCOPES = [
   "https://www.googleapis.com/auth/classroom.courses.readonly",
   "https://www.googleapis.com/auth/classroom.student-submissions.students.readonly",
+  "https://www.googleapis.com/auth/classroom.student-submissions.me.readonly",
   "https://www.googleapis.com/auth/classroom.rosters.readonly",
+  "https://www.googleapis.com/auth/classroom.grades",
   "https://www.googleapis.com/auth/drive.readonly",
   "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
@@ -40,6 +42,34 @@ async function gFetch(path: string, accessToken: string): Promise<unknown> {
     throw new Error(`Classroom API ${res.status}: ${body.slice(0, 300)}`);
   }
   return res.json();
+}
+
+async function gPatch(path: string, body: unknown, accessToken: string): Promise<unknown> {
+  const res = await fetch(`https://classroom.googleapis.com${path}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Classroom PATCH ${res.status}: ${text.slice(0, 300)}`);
+  }
+  return res.json();
+}
+
+async function gPost(path: string, body: unknown, accessToken: string): Promise<unknown> {
+  const res = await fetch(`https://classroom.googleapis.com${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Classroom POST ${res.status}: ${text.slice(0, 300)}`);
+  }
+  // :return endpoints respond 200 with empty body
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
 }
 
 // ─── OAuth ──────────────────────────────────────────────────────────────────
@@ -317,6 +347,10 @@ router.post("/classroom/import", async (req, res) => {
         status: "queued",
         flagged: true,
         issuesFound: [],
+        // Store Classroom back-reference so we can post grades later
+        classroomSubmissionId: sub.id,
+        classroomCourseId: courseId,
+        classroomCourseWorkId: courseworkId,
       })
       .returning();
 
@@ -379,6 +413,97 @@ router.post("/classroom/import", async (req, res) => {
   }
 
   res.status(201).json(results);
+});
+
+// ── POST /classroom/post-grades ────────────────────────────────────────────
+// Takes EduRithm submission UUIDs, posts assignedGrade + returns each one
+// back to the student in Google Classroom.
+router.post("/classroom/post-grades", async (req, res) => {
+  const tok = googleTokens(req);
+  if (!tok) {
+    res.status(401).json({ error: "Not connected to Google Classroom." });
+    return;
+  }
+
+  const { submissionIds } = req.body ?? {};
+  if (!Array.isArray(submissionIds) || submissionIds.length === 0) {
+    res.status(400).json({ error: "submissionIds must be a non-empty array." });
+    return;
+  }
+
+  // Load EduRithm submissions that have classroom back-references
+  const rows = await db
+    .select()
+    .from(submissionsTable)
+    .where(inArray(submissionsTable.id, submissionIds as string[]));
+
+  const valid = rows.filter(
+    (r) => r.classroomSubmissionId && r.classroomCourseId && r.classroomCourseWorkId
+  );
+
+  if (valid.length === 0) {
+    res.status(422).json({
+      error:
+        "None of the provided submissions were imported from Google Classroom. " +
+        "Only Classroom-imported submissions can have grades sent back.",
+    });
+    return;
+  }
+
+  const results: Array<{
+    eduRithmId: string;
+    studentName: string;
+    score: number | null;
+    sent: boolean;
+    returned: boolean;
+    error?: string;
+  }> = [];
+
+  for (const row of valid) {
+    const courseId = row.classroomCourseId!;
+    const courseWorkId = row.classroomCourseWorkId!;
+    const clSubId = row.classroomSubmissionId!;
+    const base = `/v1/courses/${courseId}/courseWork/${courseWorkId}/studentSubmissions`;
+
+    let sent = false;
+    let returned = false;
+    let errMsg: string | undefined;
+
+    try {
+      // 1. Patch the assigned grade
+      await gPatch(
+        `${base}/${clSubId}?updateMask=assignedGrade`,
+        { assignedGrade: row.score ?? 0 },
+        tok.accessToken
+      );
+      sent = true;
+
+      // 2. Return the submission so the student sees it
+      await gPost(`${base}/${clSubId}:return`, {}, tok.accessToken);
+      returned = true;
+
+      // 3. Mark in DB
+      await db
+        .update(submissionsTable)
+        .set({ classroomGradeSentAt: new Date() })
+        .where(eq(submissionsTable.id, row.id));
+    } catch (err: any) {
+      req.log.error({ err, rowId: row.id }, "post-grades error");
+      errMsg = err.message ?? "Unknown error";
+    }
+
+    results.push({
+      eduRithmId: row.id,
+      studentName: row.studentName,
+      score: row.score,
+      sent,
+      returned,
+      ...(errMsg ? { error: errMsg } : {}),
+    });
+  }
+
+  const allOk = results.every((r) => r.sent);
+  res.status(allOk ? 200 : 207).json({ results });
 });
 
 export default router;

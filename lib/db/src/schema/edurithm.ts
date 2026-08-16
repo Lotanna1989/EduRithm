@@ -36,6 +36,11 @@ export const submissionsTable = pgTable("edurithm_submissions", {
   correctedSnippet: text("corrected_snippet"),
   flagged: boolean("flagged").notNull().default(true),
   status: varchar("status", { length: 16 }).notNull().default("queued"),
+  // Google Classroom back-reference — populated only for Classroom imports
+  classroomSubmissionId: varchar("classroom_submission_id", { length: 120 }),
+  classroomCourseId: varchar("classroom_course_id", { length: 120 }),
+  classroomCourseWorkId: varchar("classroom_coursework_id", { length: 120 }),
+  classroomGradeSentAt: timestamp("classroom_grade_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

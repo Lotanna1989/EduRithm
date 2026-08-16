@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowRight, Check, CheckSquare2, ChevronDown, GraduationCap, Loader2, LockKeyhole, RefreshCw, Search, Unlink, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, CheckSquare2, ChevronDown, GraduationCap, Loader2, LockKeyhole, RefreshCw, Search, Send, Unlink, X } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -69,6 +69,8 @@ function ClassroomPanel() {
   const [courseworkId, setCourseworkId] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importResults, setImportResults] = useState<any[] | null>(null);
+  const [gradeBackState, setGradeBackState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+  const [gradeBackResults, setGradeBackResults] = useState<any[]>([]);
 
   const coursesQuery = useListClassroomCourses({
     query: { enabled: connected, queryKey: ['classroom-courses'] },
@@ -114,6 +116,8 @@ function ClassroomPanel() {
 
   function doImport() {
     const cw = courseworkQuery.data?.find((c) => c.id === courseworkId);
+    setGradeBackState('idle');
+    setGradeBackResults([]);
     importMutation.mutate({
       data: {
         courseId,
@@ -122,6 +126,23 @@ function ClassroomPanel() {
         submissionIds: [...selected],
       },
     });
+  }
+
+  async function doSendGrades() {
+    if (!importResults || importResults.length === 0) return;
+    setGradeBackState('sending');
+    try {
+      const res = await fetch(`${BASE}/api/classroom/post-grades`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionIds: importResults.map((r: any) => r.id) }),
+      });
+      const data = await res.json();
+      setGradeBackResults(data.results ?? []);
+      setGradeBackState(res.ok || res.status === 207 ? 'done' : 'error');
+    } catch {
+      setGradeBackState('error');
+    }
   }
 
   const [open, setOpen] = useState(false);
@@ -327,28 +348,85 @@ function ClassroomPanel() {
                 </div>
               )}
 
-              {/* Import results */}
+              {/* Import results + Send-back panel */}
               {importResults && importResults.length > 0 && (
-                <div className="card-lift overflow-hidden" data-testid="section-import-results">
-                  <div className="flex items-center gap-2 border-b border-[#e6e1d7] bg-[#edf4c9] px-5 py-3">
-                    <Check size={14} className="text-[#3d5718]" />
-                    <p className="text-xs font-bold text-[#3d5718]">
-                      {importResults.length} submission{importResults.length !== 1 ? 's' : ''} graded and added to the dashboard
-                    </p>
-                  </div>
-                  <div className="divide-y divide-[#e6e1d7]">
-                    {importResults.map((r: any) => (
-                      <div key={r.id} className="flex items-center gap-4 px-5 py-3">
-                        <span className="font-display text-xl font-bold text-[#162239] w-12 shrink-0">{r.score}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm text-[#162239] truncate">{r.studentName}</p>
-                          <p className="font-mono text-[.68rem] text-[#7b8491] truncate">{r.fileName}</p>
-                        </div>
-                        <StatusPill status={r.status} flagged={r.flagged} />
-                        <Link href={`/fix/${r.id}`} className="btn-quiet text-xs shrink-0">Open →</Link>
+                <div className="space-y-4" data-testid="section-import-results">
+                  {/* Graded rows */}
+                  <div className="card-lift overflow-hidden">
+                    <div className="flex items-center justify-between gap-3 border-b border-[#e6e1d7] bg-[#edf4c9] px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <Check size={14} className="text-[#3d5718]" />
+                        <p className="text-xs font-bold text-[#3d5718]">
+                          {importResults.length} submission{importResults.length !== 1 ? 's' : ''} graded by Gemini
+                        </p>
                       </div>
-                    ))}
+                      {/* Send-back button */}
+                      {gradeBackState !== 'done' && (
+                        <button
+                          className="btn-dark text-xs px-3 py-1.5"
+                          onClick={doSendGrades}
+                          disabled={gradeBackState === 'sending'}
+                          data-testid="button-send-grades"
+                        >
+                          {gradeBackState === 'sending'
+                            ? <><Loader2 size={13} className="animate-spin" /> Sending…</>
+                            : <><Send size={13} /> Send grades to Classroom</>}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="divide-y divide-[#e6e1d7]">
+                      {importResults.map((r: any) => {
+                        const gbr = gradeBackResults.find((g: any) => g.eduRithmId === r.id);
+                        return (
+                          <div key={r.id} className="flex items-center gap-4 px-5 py-3">
+                            <span className="font-display text-xl font-bold text-[#162239] w-12 shrink-0">{r.score}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-sm text-[#162239] truncate">{r.studentName}</p>
+                              <p className="font-mono text-[.68rem] text-[#7b8491] truncate">{r.fileName}</p>
+                            </div>
+                            <StatusPill status={r.status} flagged={r.flagged} />
+                            {/* Grade-back status badge */}
+                            {gbr && (
+                              gbr.sent
+                                ? <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#e8f0fe] px-2 py-0.5 text-[.65rem] font-bold text-[#1a3a8c]">
+                                    <Check size={9} /> Sent
+                                  </span>
+                                : <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#f9ddd5] px-2 py-0.5 text-[.65rem] font-bold text-[#9d3f2b]">
+                                    ✕ Failed
+                                  </span>
+                            )}
+                            <Link href={`/fix/${r.id}`} className="btn-quiet text-xs shrink-0">Open →</Link>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
+
+                  {/* Send-back summary */}
+                  {gradeBackState === 'done' && (
+                    <div className="rounded-xl border border-[#b6d0f5] bg-[#e8f0fe] px-5 py-4" data-testid="section-gradeback-result">
+                      <p className="font-bold text-sm text-[#162239]">
+                        <Check size={14} className="inline mr-1.5 text-[#1a3a8c]" />
+                        Grades sent to Google Classroom
+                      </p>
+                      <p className="mt-1 text-xs text-[#536078]">
+                        {gradeBackResults.filter((g: any) => g.sent).length} of {gradeBackResults.length} submissions graded and returned to students.
+                        Students will see their score in Classroom. Detailed feedback (issues found, corrections) is available here in EduRithm — share the <strong>/fix/…</strong> link for the full walkthrough.
+                      </p>
+                      {gradeBackResults.some((g: any) => g.error) && (
+                        <p className="mt-2 text-xs text-[#9d3f2b] font-bold">
+                          ⚠ Some submissions failed — you may need to reconnect with updated permissions (Disconnect → Connect Classroom again to grant grade-write access).
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {gradeBackState === 'error' && (
+                    <p className="rounded-lg bg-[#f9ddd5] px-4 py-3 text-sm font-bold text-[#9d3f2b]">
+                      Could not send grades. Disconnect and reconnect Google Classroom to grant grade-write permission, then try again.
+                    </p>
+                  )}
                 </div>
               )}
 
