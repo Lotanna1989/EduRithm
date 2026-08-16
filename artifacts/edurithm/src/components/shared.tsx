@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { AlertTriangle, ArrowRight, BookOpen, Check, ChevronRight, CircleHelp, Code2, FileUp, LayoutDashboard, LogOut, ScanSearch, Upload, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BookOpen, Briefcase, Check, ChevronRight, CircleHelp, Code2, FileUp, LayoutDashboard, LogOut, ScanSearch, Upload, X } from 'lucide-react';
 
 export function Brand({ inverse = false }: { inverse?: boolean }) {
   return (
@@ -25,6 +25,9 @@ export function StudentNav() {
           </Link>
           <Link href="/learn" className={`focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${location === '/learn' ? 'bg-[#dfe8a7] text-[#162239]' : 'text-[#536078] hover:bg-[#ece7dc] hover:text-[#162239]'}`} data-testid="link-learn">
             <BookOpen size={16} /> <span className="hidden sm:inline">Learn</span>
+          </Link>
+          <Link href="/opportunities" className={`focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${location === '/opportunities' ? 'bg-[#dfe8a7] text-[#162239]' : 'text-[#536078] hover:bg-[#ece7dc] hover:text-[#162239]'}`} data-testid="link-opportunities">
+            <Briefcase size={16} /> <span className="hidden sm:inline">Opportunities</span>
           </Link>
           <Link href="/instructor" className="focus-ring flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-[#536078] transition-colors hover:bg-[#ece7dc] hover:text-[#162239]" data-testid="link-instructor">
             <span className="hidden sm:inline">Instructor view</span><ChevronRight size={15} />

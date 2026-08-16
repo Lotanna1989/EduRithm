@@ -20,6 +20,8 @@ tags:
     description: Static learning content
   - name: review
     description: Open-ended HTML file review with no assignment required
+  - name: opportunities
+    description: AI-powered employment and skills opportunities feed
 paths:
   /healthz:
     get:
@@ -460,6 +462,98 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /opportunities/session:
+    post:
+      operationId: loginOpportunities
+      tags: [opportunities]
+      summary: Login or register for the opportunities feed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OppLoginInput"
+      responses:
+        "200":
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OppUser"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: getOppSession
+      tags: [opportunities]
+      summary: Get current opportunities session user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OppUser"
+        "401":
+          description: Not logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: logoutOpportunities
+      tags: [opportunities]
+      summary: Logout from opportunities session
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required: [ok]
+  /opportunities/feed:
+    get:
+      operationId: getOppFeed
+      tags: [opportunities]
+      summary: Get cached or fresh AI-generated opportunities feed
+      responses:
+        "200":
+          description: Opportunities feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OppFeed"
+        "401":
+          description: Not logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /opportunities/refresh:
+    post:
+      operationId: refreshOppFeed
+      tags: [opportunities]
+      summary: Force regenerate the opportunities feed via Gemini
+      responses:
+        "200":
+          description: Fresh opportunities feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OppFeed"
+        "401":
+          description: Not logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /waitlist:
     post:
       operationId: joinWaitlist
@@ -857,4 +951,88 @@ components:
         correctedSnippet:
           type: string
       required: [score, meetsBaseline, issuesFound, highlights, explanation, correctedSnippet]
+
+    OppLoginInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+        email:
+          type: string
+          minLength: 5
+        state:
+          type: string
+          minLength: 2
+        region:
+          type: string
+          minLength: 2
+      required: [name, email, state, region]
+
+    OppUser:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        state:
+          type: string
+        region:
+          type: string
+      required: [id, name, email, state, region]
+
+    OppOpportunity:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        platform:
+          type: string
+        link:
+          type: string
+        deadline:
+          type: string
+        location:
+          type: string
+        isRemote:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+      required: [id, title, description, category, platform, link, deadline, location, isRemote, tags]
+
+    OppFeed:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+        userState:
+          type: string
+        userRegion:
+          type: string
+        summary:
+          type: string
+        opportunities:
+          type: array
+          items:
+            $ref: "#/components/schemas/OppOpportunity"
+        linkedinTips:
+          type: array
+          items:
+            type: string
+        cached:
+          type: boolean
+        cacheAge:
+          type: number
+      required: [generatedAt, userState, userRegion, summary, opportunities, linkedinTips, cached]
 

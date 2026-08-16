@@ -292,6 +292,49 @@ export interface ReviewResult {
   correctedSnippet: string;
 }
 
+export interface OppLoginInput {
+  /** @minLength 2 */
+  name: string;
+  /** @minLength 5 */
+  email: string;
+  /** @minLength 2 */
+  state: string;
+  /** @minLength 2 */
+  region: string;
+}
+
+export interface OppUser {
+  id: string;
+  name: string;
+  email: string;
+  state: string;
+  region: string;
+}
+
+export interface OppOpportunity {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  platform: string;
+  link: string;
+  deadline: string;
+  location: string;
+  isRemote: boolean;
+  tags: string[];
+}
+
+export interface OppFeed {
+  generatedAt: string;
+  userState: string;
+  userRegion: string;
+  summary: string;
+  opportunities: OppOpportunity[];
+  linkedinTips: string[];
+  cached: boolean;
+  cacheAge?: number;
+}
+
 export type GetRandomAssignmentParams = {
 level: GetRandomAssignmentLevel;
 track: GetRandomAssignmentTrack;
@@ -336,4 +379,8 @@ export const ListInstructorSubmissionsTrack = {
   Digital_Literacy: 'Digital Literacy',
   Web_and_Software_Engineering: 'Web and Software Engineering',
 } as const;
+
+export type LogoutOpportunities200 = {
+  ok: boolean;
+};
 

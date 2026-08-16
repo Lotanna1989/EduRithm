@@ -7,6 +7,7 @@ import Home from '@/pages/home';
 import FixItPage from '@/pages/fix-it';
 import LearnPage from '@/pages/learn';
 import ReviewPage from '@/pages/review';
+import OpportunitiesPage from '@/pages/opportunities';
 import InstructorPage from '@/pages/instructor';
 import InstructorUploadPage from '@/pages/instructor-upload';
 import { Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
@@ -23,6 +24,7 @@ function Router() {
     <Route path="/" component={Home} />
     <Route path="/fix/:submissionId" component={FixItPage} />
     <Route path="/learn" component={LearnPage} />
+    <Route path="/opportunities" component={OpportunitiesPage} />
     <Route path="/review" component={ReviewPage} />
     <Route path="/instructor/upload" component={InstructorUploadPage} />
     <Route path="/instructor" component={InstructorPage} />

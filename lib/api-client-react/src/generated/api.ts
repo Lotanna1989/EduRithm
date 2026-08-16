@@ -38,6 +38,10 @@ import type {
   InstructorSession,
   LearnConcept,
   ListInstructorSubmissionsParams,
+  LogoutOpportunities200,
+  OppFeed,
+  OppLoginInput,
+  OppUser,
   ReviewInput,
   ReviewResult,
   Submission,
@@ -1514,6 +1518,373 @@ export const useImportClassroomSubmissions = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getImportClassroomSubmissionsMutationOptions(options));
+    }
+
+export const getLoginOpportunitiesUrl = () => {
+
+
+
+
+  return `/api/opportunities/session`
+}
+
+/**
+ * @summary Login or register for the opportunities feed
+ */
+export const loginOpportunities = async (oppLoginInput: OppLoginInput, options?: Parameters<typeof customFetch>[1]): Promise<OppUser> => {
+
+  return customFetch<OppUser>(getLoginOpportunitiesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(oppLoginInput)
+  }
+);}
+
+
+
+
+
+export const getLoginOpportunitiesMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginOpportunities>>, TError,{data: BodyType<OppLoginInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof loginOpportunities>>, TError,{data: BodyType<OppLoginInput>}, TContext> => {
+
+const mutationKey = ['loginOpportunities'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loginOpportunities>>, {data: BodyType<OppLoginInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  loginOpportunities(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoginOpportunitiesMutationResult = NonNullable<Awaited<ReturnType<typeof loginOpportunities>>>
+    export type LoginOpportunitiesMutationBody = BodyType<OppLoginInput>
+    export type LoginOpportunitiesMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Login or register for the opportunities feed
+ */
+export const useLoginOpportunities = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginOpportunities>>, TError,{data: BodyType<OppLoginInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof loginOpportunities>>,
+        TError,
+        {data: BodyType<OppLoginInput>},
+        TContext
+      > => {
+      return useMutation(getLoginOpportunitiesMutationOptions(options));
+    }
+
+export const getGetOppSessionUrl = () => {
+
+
+
+
+  return `/api/opportunities/session`
+}
+
+/**
+ * @summary Get current opportunities session user
+ */
+export const getOppSession = async ( options?: Parameters<typeof customFetch>[1]): Promise<OppUser> => {
+
+  return customFetch<OppUser>(getGetOppSessionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOppSessionQueryKey = () => {
+    return [
+    `/api/opportunities/session`
+    ] as const;
+    }
+
+
+export const getGetOppSessionQueryOptions = <TData = Awaited<ReturnType<typeof getOppSession>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOppSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOppSessionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOppSession>>> = ({ signal }) => getOppSession({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOppSession>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOppSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getOppSession>>>
+export type GetOppSessionQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get current opportunities session user
+ */
+
+export function useGetOppSession<TData = Awaited<ReturnType<typeof getOppSession>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOppSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOppSessionQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLogoutOpportunitiesUrl = () => {
+
+
+
+
+  return `/api/opportunities/session`
+}
+
+/**
+ * @summary Logout from opportunities session
+ */
+export const logoutOpportunities = async ( options?: Parameters<typeof customFetch>[1]): Promise<LogoutOpportunities200> => {
+
+  return customFetch<LogoutOpportunities200>(getLogoutOpportunitiesUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getLogoutOpportunitiesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logoutOpportunities>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof logoutOpportunities>>, TError,void, TContext> => {
+
+const mutationKey = ['logoutOpportunities'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logoutOpportunities>>, void> = () => {
+
+
+          return  logoutOpportunities(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogoutOpportunitiesMutationResult = NonNullable<Awaited<ReturnType<typeof logoutOpportunities>>>
+
+    export type LogoutOpportunitiesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Logout from opportunities session
+ */
+export const useLogoutOpportunities = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logoutOpportunities>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof logoutOpportunities>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLogoutOpportunitiesMutationOptions(options));
+    }
+
+export const getGetOppFeedUrl = () => {
+
+
+
+
+  return `/api/opportunities/feed`
+}
+
+/**
+ * @summary Get cached or fresh AI-generated opportunities feed
+ */
+export const getOppFeed = async ( options?: Parameters<typeof customFetch>[1]): Promise<OppFeed> => {
+
+  return customFetch<OppFeed>(getGetOppFeedUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOppFeedQueryKey = () => {
+    return [
+    `/api/opportunities/feed`
+    ] as const;
+    }
+
+
+export const getGetOppFeedQueryOptions = <TData = Awaited<ReturnType<typeof getOppFeed>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOppFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOppFeedQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOppFeed>>> = ({ signal }) => getOppFeed({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOppFeed>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOppFeedQueryResult = NonNullable<Awaited<ReturnType<typeof getOppFeed>>>
+export type GetOppFeedQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get cached or fresh AI-generated opportunities feed
+ */
+
+export function useGetOppFeed<TData = Awaited<ReturnType<typeof getOppFeed>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOppFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOppFeedQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRefreshOppFeedUrl = () => {
+
+
+
+
+  return `/api/opportunities/refresh`
+}
+
+/**
+ * @summary Force regenerate the opportunities feed via Gemini
+ */
+export const refreshOppFeed = async ( options?: Parameters<typeof customFetch>[1]): Promise<OppFeed> => {
+
+  return customFetch<OppFeed>(getRefreshOppFeedUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshOppFeedMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshOppFeed>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshOppFeed>>, TError,void, TContext> => {
+
+const mutationKey = ['refreshOppFeed'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshOppFeed>>, void> = () => {
+
+
+          return  refreshOppFeed(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshOppFeedMutationResult = NonNullable<Awaited<ReturnType<typeof refreshOppFeed>>>
+
+    export type RefreshOppFeedMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Force regenerate the opportunities feed via Gemini
+ */
+export const useRefreshOppFeed = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshOppFeed>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshOppFeed>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshOppFeedMutationOptions(options));
     }
 
 export const getJoinWaitlistUrl = () => {

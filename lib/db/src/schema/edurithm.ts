@@ -92,6 +92,27 @@ export const waitlistTable = pgTable("edurithm_waitlist", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ── Opportunities: lightweight student profile ────────────────────────────────
+export const oppUsersTable = pgTable("edurithm_opp_users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 160 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  state: varchar("state", { length: 80 }).notNull(),
+  region: varchar("region", { length: 80 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Opportunities: cached Gemini feed per user (24-hour TTL) ─────────────────
+export const oppCacheTable = pgTable("edurithm_opp_cache", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => oppUsersTable.id, { onDelete: "cascade" }),
+  results: jsonb("results").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
 export const insertLearnConceptSchema = createInsertSchema(learnConceptsTable).omit({
   id: true,
 });

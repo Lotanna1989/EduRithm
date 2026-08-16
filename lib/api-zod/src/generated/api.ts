@@ -425,6 +425,107 @@ export const ImportClassroomSubmissionsResponse = zod.array(ImportClassroomSubmi
 
 
 /**
+ * @summary Login or register for the opportunities feed
+ */
+export const loginOpportunitiesBodyNameMin = 2;
+
+export const loginOpportunitiesBodyEmailMin = 5;
+
+export const loginOpportunitiesBodyStateMin = 2;
+
+export const loginOpportunitiesBodyRegionMin = 2;
+
+
+
+export const LoginOpportunitiesBody = zod.object({
+  "name": zod.string().min(loginOpportunitiesBodyNameMin),
+  "email": zod.string().min(loginOpportunitiesBodyEmailMin),
+  "state": zod.string().min(loginOpportunitiesBodyStateMin),
+  "region": zod.string().min(loginOpportunitiesBodyRegionMin)
+})
+
+export const LoginOpportunitiesResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "state": zod.string(),
+  "region": zod.string()
+})
+
+
+/**
+ * @summary Get current opportunities session user
+ */
+export const GetOppSessionResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "state": zod.string(),
+  "region": zod.string()
+})
+
+
+/**
+ * @summary Logout from opportunities session
+ */
+export const LogoutOpportunitiesResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Get cached or fresh AI-generated opportunities feed
+ */
+export const GetOppFeedResponse = zod.object({
+  "generatedAt": zod.string(),
+  "userState": zod.string(),
+  "userRegion": zod.string(),
+  "summary": zod.string(),
+  "opportunities": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "platform": zod.string(),
+  "link": zod.string(),
+  "deadline": zod.string(),
+  "location": zod.string(),
+  "isRemote": zod.boolean(),
+  "tags": zod.array(zod.string())
+})),
+  "linkedinTips": zod.array(zod.string()),
+  "cached": zod.boolean(),
+  "cacheAge": zod.number().optional()
+})
+
+
+/**
+ * @summary Force regenerate the opportunities feed via Gemini
+ */
+export const RefreshOppFeedResponse = zod.object({
+  "generatedAt": zod.string(),
+  "userState": zod.string(),
+  "userRegion": zod.string(),
+  "summary": zod.string(),
+  "opportunities": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "category": zod.string(),
+  "platform": zod.string(),
+  "link": zod.string(),
+  "deadline": zod.string(),
+  "location": zod.string(),
+  "isRemote": zod.boolean(),
+  "tags": zod.array(zod.string())
+})),
+  "linkedinTips": zod.array(zod.string()),
+  "cached": zod.boolean(),
+  "cacheAge": zod.number().optional()
+})
+
+
+/**
  * @summary Sign up for EduRithm expansion waitlist
  */
 
