@@ -84,8 +84,21 @@ export const insertGeminiCallSchema = createInsertSchema(geminiCallsTable).omit(
   id: true,
   createdAt: true,
 });
+export const waitlistTable = pgTable("edurithm_waitlist", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 160 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  interests: jsonb("interests").$type<string[]>().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const insertLearnConceptSchema = createInsertSchema(learnConceptsTable).omit({
   id: true,
+});
+
+export const insertWaitlistSchema = createInsertSchema(waitlistTable).omit({
+  id: true,
+  createdAt: true,
 });
 
 export type Assignment = typeof assignmentsTable.$inferSelect;
@@ -97,3 +110,5 @@ export type InsertSubmission = z.infer<typeof insertSubmissionSchema>;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertGeminiCall = z.infer<typeof insertGeminiCallSchema>;
 export type InsertLearnConcept = z.infer<typeof insertLearnConceptSchema>;
+export type WaitlistEntry = typeof waitlistTable.$inferSelect;
+export type InsertWaitlist = z.infer<typeof insertWaitlistSchema>;

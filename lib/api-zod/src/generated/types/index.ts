@@ -44,3 +44,5 @@ export * from './submissionRowStatus';
 export * from './submissionRowTrack';
 export * from './submissionStatus';
 export * from './submissionTrack';
+export * from './waitlistConfirmation';
+export * from './waitlistInput';

@@ -460,6 +460,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /waitlist:
+    post:
+      operationId: joinWaitlist
+      tags: [learn]
+      summary: Sign up for EduRithm expansion waitlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WaitlistInput"
+      responses:
+        "201":
+          description: Successfully joined waitlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistConfirmation"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /review:
     post:
       operationId: reviewHtml
@@ -781,6 +805,28 @@ components:
           items:
             type: string
       required: [courseId, courseworkId, courseworkTitle, submissionIds]
+    WaitlistInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          minLength: 3
+        interests:
+          type: array
+          items:
+            type: string
+      required: [name, email, interests]
+    WaitlistConfirmation:
+      type: object
+      properties:
+        id:
+          type: string
+        message:
+          type: string
+      required: [id, message]
     ReviewInput:
       type: object
       properties:

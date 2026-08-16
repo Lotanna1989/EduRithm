@@ -6,6 +6,7 @@ import instructorRouter from "./instructor";
 import learnRouter from "./learn";
 import reviewRouter from "./review";
 import classroomRouter from "./classroom";
+import waitlistRouter from "./waitlist";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(instructorRouter);
 router.use(learnRouter);
 router.use(reviewRouter);
 router.use(classroomRouter);
+router.use(waitlistRouter);
 
 export default router;

@@ -425,6 +425,26 @@ export const ImportClassroomSubmissionsResponse = zod.array(ImportClassroomSubmi
 
 
 /**
+ * @summary Sign up for EduRithm expansion waitlist
+ */
+
+export const joinWaitlistBodyEmailMin = 3;
+
+
+
+export const JoinWaitlistBody = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string().min(joinWaitlistBodyEmailMin),
+  "interests": zod.array(zod.string())
+})
+
+export const JoinWaitlistResponse = zod.object({
+  "id": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Review any HTML file without an assignment
  */
 

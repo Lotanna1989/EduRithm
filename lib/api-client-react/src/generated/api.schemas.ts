@@ -263,6 +263,19 @@ export interface ClassroomImportInput {
   submissionIds: string[];
 }
 
+export interface WaitlistInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 3 */
+  email: string;
+  interests: string[];
+}
+
+export interface WaitlistConfirmation {
+  id: string;
+  message: string;
+}
+
 export interface ReviewInput {
   /** @minLength 1 */
   fileName: string;
