@@ -334,22 +334,47 @@ function ClassroomPanel() {
                       </div>
 
                       {/* Import bar */}
-                      <div className="flex items-center justify-between gap-4 border-t border-[#e6e1d7] bg-[#f7f3ea] px-5 py-3">
-                        <p className="text-xs text-[#687386]">
-                          {selected.size > 0
-                            ? `${selected.size} file${selected.size !== 1 ? 's' : ''} selected`
-                            : `${hasHtml.length} student${hasHtml.length !== 1 ? 's' : ''} with HTML files`}
-                        </p>
-                        <button
-                          className="btn-dark"
-                          disabled={selected.size === 0 || importMutation.isPending}
-                          onClick={doImport}
-                          data-testid="button-import-grade"
-                        >
-                          {importMutation.isPending
-                            ? <><Loader2 size={14} className="animate-spin" /> Grading…</>
-                            : <><GraduationCap size={14} /> Import &amp; grade {selected.size > 0 ? `(${selected.size})` : ''}</>}
-                        </button>
+                      <div className="border-t border-[#e6e1d7] bg-[#f7f3ea] px-5 py-3 space-y-2">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <p className="text-xs text-[#687386]">
+                            {selected.size > 0
+                              ? `${selected.size} student${selected.size !== 1 ? 's' : ''} selected`
+                              : `${hasHtml.length} student${hasHtml.length !== 1 ? 's' : ''} with files`}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="btn-quiet text-xs px-3 py-1.5 border border-[#c7ccd2]"
+                              disabled={selected.size !== 1 || importMutation.isPending}
+                              onClick={doImport}
+                              data-testid="button-grade-single"
+                              title="Select exactly one student to grade individually"
+                            >
+                              {importMutation.isPending && selected.size === 1
+                                ? <><Loader2 size={13} className="animate-spin" /> Grading…</>
+                                : <><GraduationCap size={13} /> Grade &amp; recommend (1)</>}
+                            </button>
+                            <button
+                              className="btn-dark"
+                              disabled={selected.size < 2 || importMutation.isPending}
+                              onClick={doImport}
+                              data-testid="button-grade-batch"
+                            >
+                              {importMutation.isPending && selected.size >= 2
+                                ? <><Loader2 size={14} className="animate-spin" /> Batch grading…</>
+                                : <><GraduationCap size={14} /> Batch grade &amp; recommend ({selected.size})</>}
+                            </button>
+                          </div>
+                        </div>
+                        {hasHtml.length >= 2 && selected.size < hasHtml.length && (
+                          <button
+                            className="w-full rounded-lg border border-dashed border-[#b5c47a] bg-[#edf4c9]/60 py-2 text-xs font-bold text-[#3d5718] hover:bg-[#edf4c9] transition-colors disabled:opacity-40"
+                            disabled={importMutation.isPending}
+                            onClick={() => setSelected(new Set(hasHtml.map((s) => s.id)))}
+                            data-testid="button-select-all-grade"
+                          >
+                            Select all {hasHtml.length} students for batch grading
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
