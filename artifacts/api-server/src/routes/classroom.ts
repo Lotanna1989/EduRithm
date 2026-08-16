@@ -59,6 +59,79 @@ async function gPatch(path: string, body: unknown, accessToken: string): Promise
   return res.json();
 }
 
+// ── Drive file download helper ─────────────────────────────────────────────
+// Handles both regular uploaded files (alt=media) and Google Workspace files
+// (Docs → export as HTML, Sheets/Slides → unsupported).
+const GOOGLE_WORKSPACE_TYPES: Record<string, string> = {
+  "application/vnd.google-apps.document": "text/html",
+  "application/vnd.google-apps.presentation": "text/plain",
+};
+const UNSUPPORTED_WORKSPACE = new Set([
+  "application/vnd.google-apps.spreadsheet",
+  "application/vnd.google-apps.form",
+  "application/vnd.google-apps.drawing",
+]);
+
+async function downloadDriveFile(
+  fileId: string,
+  mimeType: string | undefined,
+  accessToken: string
+): Promise<{ content: string; skipped: false } | { skipped: true; reason: string }> {
+  // Unsupported Google Workspace type
+  if (mimeType && UNSUPPORTED_WORKSPACE.has(mimeType)) {
+    return { skipped: true, reason: `File type "${mimeType}" cannot be graded as code` };
+  }
+
+  // Google Docs / Presentations → export endpoint
+  const exportMime = mimeType ? GOOGLE_WORKSPACE_TYPES[mimeType] : undefined;
+  const url = exportMime
+    ? `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMime)}`
+    : `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) {
+    const body = await res.text();
+    return { skipped: true, reason: `Drive download failed (${res.status}): ${body.slice(0, 200)}` };
+  }
+  const content = await res.text();
+  if (!content.trim()) {
+    return { skipped: true, reason: "File is empty" };
+  }
+  return { skipped: false, content };
+}
+
+// ── Pick the best attachment from a submission's attachment list ────────────
+// Priority: .html > Google Doc > any other driveFile > link
+function pickAttachment(attachments: any[]): {
+  driveFile?: { id: string; title: string; mimeType?: string };
+  link?: { url: string; title?: string };
+} | null {
+  const driveFiles: any[] = attachments.filter((a: any) => a.driveFile);
+  if (driveFiles.length === 0) {
+    const link = attachments.find((a: any) => a.link);
+    return link ? { link: link.link } : null;
+  }
+  // Prefer html, then google-doc, then anything else
+  const html = driveFiles.find((a: any) =>
+    a.driveFile.title?.toLowerCase().endsWith(".html")
+  );
+  if (html) return { driveFile: html.driveFile };
+  const doc = driveFiles.find((a: any) =>
+    a.driveFile.mimeType === "application/vnd.google-apps.document"
+  );
+  if (doc) return { driveFile: doc.driveFile };
+  // Fall back to any driveFile that looks like code or text
+  const text = driveFiles.find((a: any) => {
+    const t = a.driveFile.title?.toLowerCase() ?? "";
+    return (
+      t.endsWith(".txt") || t.endsWith(".js") || t.endsWith(".css") ||
+      t.endsWith(".py") || t.endsWith(".ts") || t.endsWith(".jsx") ||
+      t.endsWith(".tsx") || t.endsWith(".json")
+    );
+  });
+  return text ? { driveFile: text.driveFile } : { driveFile: driveFiles[0].driveFile };
+}
+
 async function gPost(path: string, body: unknown, accessToken: string): Promise<unknown> {
   const res = await fetch(`https://classroom.googleapis.com${path}`, {
     method: "POST",
@@ -231,17 +304,16 @@ router.get(
       res.json(
         (subData.studentSubmissions ?? []).map((sub: any) => {
           const attachments: any[] = sub.assignmentSubmission?.attachments ?? [];
-          const htmlFile = attachments.find((a) =>
-            a.driveFile?.title?.toLowerCase().endsWith(".html")
-          );
+          const picked = pickAttachment(attachments);
           return {
             id: sub.id,
             userId: sub.userId,
             studentName: nameMap[sub.userId] ?? sub.userId,
             state: sub.state ?? "UNKNOWN",
-            hasHtmlAttachment: !!htmlFile,
-            attachmentFileId: htmlFile?.driveFile?.id ?? null,
-            attachmentFileName: htmlFile?.driveFile?.title ?? null,
+            hasHtmlAttachment: !!(picked?.driveFile),
+            attachmentFileId: picked?.driveFile?.id ?? null,
+            attachmentFileName: picked?.driveFile?.title ?? picked?.link?.title ?? null,
+            attachmentMimeType: picked?.driveFile?.mimeType ?? null,
           };
         })
       );
@@ -305,35 +377,40 @@ router.post("/classroom/import", async (req, res) => {
   const results: unknown[] = [];
 
   for (const sub of toImport) {
+    const studentName = nameMap[sub.userId] ?? sub.userId;
     const attachments: any[] = sub.assignmentSubmission?.attachments ?? [];
-    const htmlFile = attachments.find((a: any) =>
-      a.driveFile?.title?.toLowerCase().endsWith(".html")
-    );
+    const picked = pickAttachment(attachments);
 
-    if (!htmlFile) {
-      req.log.warn({ submissionId: sub.id }, "No HTML attachment — skipping");
+    if (!picked?.driveFile) {
+      const reason = attachments.length === 0
+        ? "Student has not attached any file"
+        : "No supported file attachment found (link-only submissions cannot be graded)";
+      req.log.warn({ submissionId: sub.id }, reason);
+      results.push({ skipped: true, studentName, reason });
       continue;
     }
 
-    // Download the file from Google Drive
+    // Download from Drive (handles Google Docs export automatically)
     let codeContent: string;
     try {
-      const driveRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${htmlFile.driveFile.id}?alt=media`,
-        { headers: { Authorization: `Bearer ${tok.accessToken}` } }
+      const dl = await downloadDriveFile(
+        picked.driveFile.id,
+        picked.driveFile.mimeType,
+        tok.accessToken
       );
-      if (!driveRes.ok) {
-        req.log.warn({ status: driveRes.status }, "Drive download failed — skipping");
+      if (dl.skipped) {
+        req.log.warn({ submissionId: sub.id, reason: dl.reason }, "Drive download skipped");
+        results.push({ skipped: true, studentName, reason: dl.reason });
         continue;
       }
-      codeContent = await driveRes.text();
+      codeContent = dl.content;
     } catch (err) {
       req.log.error({ err }, "Drive fetch error");
+      results.push({ skipped: true, studentName, reason: "Drive fetch threw an unexpected error" });
       continue;
     }
 
-    const studentName = nameMap[sub.userId] ?? sub.userId;
-    const fileName = htmlFile.driveFile.title as string;
+    const fileName = picked.driveFile.title as string;
 
     // Insert submission record, grade it, update
     const [submission] = await db
