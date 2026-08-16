@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { BookOpen, Check, ExternalLink, Loader2, Search, Sparkles } from 'lucide-react';
+import { BookOpen, Check, Code2, ExternalLink, Loader2, Search, Sparkles } from 'lucide-react';
+import { Link } from 'wouter';
 import { useListLearnConcepts, getListLearnConceptsQueryKey, useJoinWaitlist } from '@workspace/api-client-react';
 import { ErrorState, PageTitle, SkeletonBlock, StudentNav, EmptyState } from '@/components/shared';
 
@@ -214,6 +215,24 @@ export default function LearnPage() {
             />
           </div>
         </PageTitle>
+
+        {/* IDE callout */}
+        <Link
+          to="/review"
+          className="mt-8 flex items-center gap-4 rounded-2xl border border-[#9ebc28]/40 bg-[#edf4c9] px-5 py-4 transition hover:border-[#9ebc28] hover:bg-[#e4efb8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#9ebc28]"
+          data-testid="banner-ide"
+        >
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#162239] text-[#d7f34b]">
+            <Code2 size={18} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-[#162239]">Try the code yourself — there's a live editor</p>
+            <p className="text-sm text-[#536078]">
+              Paste any HTML into the EduRithm code playground and get instant AI feedback on what you wrote.
+            </p>
+          </div>
+          <ExternalLink size={16} className="shrink-0 text-[#8da923]" />
+        </Link>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-[.75fr_1.25fr]">
           {conceptsQuery.isLoading ? (
