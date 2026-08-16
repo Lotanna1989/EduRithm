@@ -16,11 +16,13 @@ const REDIRECT_URI = `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/callback
 const SCOPES = [
   "https://www.googleapis.com/auth/classroom.courses.readonly",
   "https://www.googleapis.com/auth/classroom.student-submissions.students.readonly",
-  "https://www.googleapis.com/auth/classroom.student-submissions.me.readonly",
   "https://www.googleapis.com/auth/classroom.rosters.readonly",
-  "https://www.googleapis.com/auth/classroom.grades",
   "https://www.googleapis.com/auth/drive.readonly",
   "https://www.googleapis.com/auth/userinfo.email",
+  // classroom.grades is a RESTRICTED scope — requires Google security assessment
+  // before it can be requested in production or testing. Kept here as a comment
+  // until the app completes Google's OAuth verification process.
+  // "https://www.googleapis.com/auth/classroom.grades",
 ].join(" ");
 
 // ─── Session helpers ────────────────────────────────────────────────────────
