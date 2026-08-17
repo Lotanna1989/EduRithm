@@ -1,12 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 
-const STORAGE_KEY = 'edurithm_onboarded';
-const LEVEL_KEY   = 'edurithm_level';
-const TRACK_KEY   = 'edurithm_track';
+// ── localStorage keys ────────────────────────────────────────────────────────
+export const STORAGE_ONBOARDED  = 'edurithm_onboarded';
+export const STORAGE_LEVEL      = 'edurithm_level';
+export const STORAGE_TRACK      = 'edurithm_track';
+export const STORAGE_CURRICULUM = 'edurithm_curriculum';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
+// ── Types (mirrored from API) ────────────────────────────────────────────────
+export interface CurriculumTopic {
+  title: string;
+  what: string;
+  goal: string;
+  ytSearch: string;
+}
+export interface CurriculumWeek {
+  week: number;
+  theme: string;
+  topics: CurriculumTopic[];
+}
+export interface Curriculum {
+  title: string;
+  weeks: CurriculumWeek[];
+}
+
+// ── Static option data ───────────────────────────────────────────────────────
 const LEVELS = [
   { id: 'beginner',     label: 'Beginner',     desc: 'Little or no coding experience' },
   { id: 'intermediate', label: 'Intermediate',  desc: 'Know some basics, want to go deeper' },
@@ -20,19 +40,25 @@ const TRACKS = [
   { id: 'python',     label: 'Python',     emoji: '🐍', desc: 'Data, logic & automation' },
 ];
 
+// ── Week colours ─────────────────────────────────────────────────────────────
+const WEEK_COLORS = ['#d7f34b', '#60a5fa', '#f97316'];
+
+// ── Component ────────────────────────────────────────────────────────────────
 export default function Onboarding() {
   const [, setLocation] = useLocation();
-  const [visible, setVisible]   = useState(false);
-  const [fading, setFading]     = useState(false);
-  const [step, setStep]         = useState(1); // 1 = level, 2 = track, 3 = welcome
-  const [level, setLevel]       = useState('');
-  const [track, setTrack]       = useState('');
-  const [message, setMessage]   = useState('');
-  const [concepts, setConcepts] = useState<string[]>([]);
-  const [loading, setLoading]   = useState(false);
+  const [visible, setVisible]       = useState(false);
+  const [fading, setFading]         = useState(false);
+  const [step, setStep]             = useState(1); // 1=level 2=track 3=curriculum
+  const [level, setLevel]           = useState('');
+  const [track, setTrack]           = useState('');
+  const [message, setMessage]       = useState('');
+  const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
+  const [concepts, setConcepts]     = useState<string[]>([]);
+  const [loading, setLoading]       = useState(false);
+  const [openWeek, setOpenWeek]     = useState(0); // index of expanded week
 
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) setVisible(true);
+    if (!localStorage.getItem(STORAGE_ONBOARDED)) setVisible(true);
   }, []);
 
   async function chooseTrack(t: string) {
@@ -47,18 +73,21 @@ export default function Onboarding() {
       });
       const data = await res.json();
       setMessage(data.message ?? 'Welcome to EduRithm!');
+      setCurriculum(data.curriculum ?? null);
       setConcepts(data.recommendedConcepts ?? []);
     } catch {
-      setMessage('Welcome to EduRithm! Let\'s start building your coding skills.');
+      setMessage("Welcome to EduRithm! Let's start building your coding skills together.");
+      setCurriculum(null);
     } finally {
       setLoading(false);
     }
   }
 
   function finish() {
-    localStorage.setItem(STORAGE_KEY, '1');
-    localStorage.setItem(LEVEL_KEY, level);
-    localStorage.setItem(TRACK_KEY, track);
+    localStorage.setItem(STORAGE_ONBOARDED, '1');
+    localStorage.setItem(STORAGE_LEVEL, level);
+    localStorage.setItem(STORAGE_TRACK, track);
+    if (curriculum) localStorage.setItem(STORAGE_CURRICULUM, JSON.stringify(curriculum));
     setFading(true);
     setTimeout(() => {
       setVisible(false);
@@ -70,53 +99,35 @@ export default function Onboarding() {
   if (!visible) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9998,
-        background: '#0a0a0a',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'opacity 0.5s ease',
-        opacity: fading ? 0 : 1,
-        padding: '1.5rem',
-      }}
-    >
-      <div style={{ width: '100%', maxWidth: 560, color: '#fff' }}>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9998,
+      background: '#0a0a0a',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      transition: 'opacity 0.5s ease',
+      opacity: fading ? 0 : 1,
+      padding: '1.25rem',
+      overflowY: 'auto',
+    }}>
+      <div style={{ width: '100%', maxWidth: 600, color: '#fff', paddingTop: '1rem', paddingBottom: '2rem' }}>
 
         {/* Brand */}
-        <p style={{ fontSize: '0.75rem', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.35)', marginBottom: '2rem', fontWeight: 600 }}>
+        <p style={{ fontSize: '0.72rem', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.3)', marginBottom: '2.5rem', fontWeight: 700 }}>
           EDURITHM
         </p>
 
         {/* ── Step 1: Level ── */}
         {step === 1 && (
           <div style={{ animation: 'fadeUp 0.4s ease' }}>
-            <h1 style={{ fontSize: 'clamp(1.6rem,4vw,2.2rem)', fontWeight: 800, lineHeight: 1.15, marginBottom: '0.5rem' }}>
+            <h1 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 800, lineHeight: 1.1, marginBottom: '0.5rem' }}>
               What's your coding level?
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.45)', marginBottom: '2rem', fontSize: '0.95rem' }}>
-              Be honest — we'll meet you exactly where you are.
+            <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '2rem', fontSize: '0.92rem' }}>
+              Be honest — we'll personalise your entire learning path around it.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {LEVELS.map((l) => (
-                <button
-                  key={l.id}
-                  onClick={() => { setLevel(l.id); setStep(2); }}
-                  style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: 12,
-                    padding: '1rem 1.25rem',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    color: '#fff',
-                    transition: 'background 0.2s, border-color 0.2s',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(180,220,60,0.12)'; (e.currentTarget as HTMLElement).style.borderColor = '#b4dc3c'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'; }}
-                >
-                  <div style={{ fontWeight: 700, fontSize: '1rem' }}>{l.label}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem', marginTop: 2 }}>{l.desc}</div>
-                </button>
+                <OptionButton key={l.id} label={l.label} desc={l.desc}
+                  onClick={() => { setLevel(l.id); setStep(2); }} />
               ))}
             </div>
           </div>
@@ -125,84 +136,106 @@ export default function Onboarding() {
         {/* ── Step 2: Track ── */}
         {step === 2 && (
           <div style={{ animation: 'fadeUp 0.4s ease' }}>
-            <h1 style={{ fontSize: 'clamp(1.6rem,4vw,2.2rem)', fontWeight: 800, lineHeight: 1.15, marginBottom: '0.5rem' }}>
+            <h1 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 800, lineHeight: 1.1, marginBottom: '0.5rem' }}>
               What do you want to learn?
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.45)', marginBottom: '2rem', fontSize: '0.95rem' }}>
+            <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '2rem', fontSize: '0.92rem' }}>
               Pick one to start — you can explore others anytime.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               {TRACKS.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => chooseTrack(t.id)}
-                  style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: 12,
-                    padding: '1.25rem 1rem',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    color: '#fff',
-                    transition: 'background 0.2s, border-color 0.2s',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(180,220,60,0.12)'; (e.currentTarget as HTMLElement).style.borderColor = '#b4dc3c'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)'; }}
-                >
-                  <div style={{ fontSize: '1.6rem', marginBottom: 6 }}>{t.emoji}</div>
-                  <div style={{ fontWeight: 700, fontSize: '1rem' }}>{t.label}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', marginTop: 2 }}>{t.desc}</div>
-                </button>
+                <TrackButton key={t.id} {...t} onClick={() => chooseTrack(t.id)} />
               ))}
             </div>
-            <button
-              onClick={() => setStep(1)}
-              style={{ marginTop: '1.5rem', background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', fontSize: '0.8rem' }}
-            >
-              ← Back
-            </button>
+            <button onClick={() => setStep(1)} style={backBtnStyle}>← Back</button>
           </div>
         )}
 
-        {/* ── Step 3: Gemini welcome ── */}
+        {/* ── Step 3: Curriculum ── */}
         {step === 3 && (
           <div style={{ animation: 'fadeUp 0.4s ease' }}>
-            <p style={{ fontSize: '0.75rem', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: '1.25rem', fontWeight: 600 }}>
-              GEMINI AI
-            </p>
             {loading ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
-                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#b4dc3c', animation: 'pulse 1s infinite' }} />
-                Preparing your learning path…
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(255,255,255,0.4)', marginBottom: '1rem' }}>
+                  <Spinner /> Building your personalised 3-week curriculum…
+                </div>
+                {[1,2,3].map(i => (
+                  <div key={i} style={{ height: 80, borderRadius: 12, background: 'rgba(255,255,255,0.05)', marginBottom: '0.75rem', animation: 'pulse 1.4s ease infinite' }} />
+                ))}
               </div>
             ) : (
               <>
-                <p style={{ fontSize: 'clamp(1rem,2.5vw,1.2rem)', lineHeight: 1.7, color: 'rgba(255,255,255,0.85)', marginBottom: '2rem' }}>
+                {/* AI badge */}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(215,243,75,0.12)', border: '1px solid rgba(215,243,75,0.25)', borderRadius: 20, padding: '0.3rem 0.8rem', marginBottom: '1.25rem' }}>
+                  <span style={{ fontSize: '0.65rem', letterSpacing: '0.1em', color: '#d7f34b', fontWeight: 700 }}>✦ GEMINI GENERATED</span>
+                </div>
+
+                {/* Welcome */}
+                <p style={{ fontSize: 'clamp(0.95rem,2.2vw,1.1rem)', lineHeight: 1.75, color: 'rgba(255,255,255,0.8)', marginBottom: '1.75rem' }}>
                   {message}
                 </p>
+
+                {/* Curriculum title */}
+                {curriculum && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
+                      <h2 style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{curriculum.title}</h2>
+                      <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>3 weeks · 9 topics</span>
+                    </div>
+
+                    {/* Week accordion */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '2rem' }}>
+                      {curriculum.weeks.map((week, wi) => {
+                        const color = WEEK_COLORS[wi] ?? '#d7f34b';
+                        const isOpen = openWeek === wi;
+                        return (
+                          <div key={week.week} style={{ borderRadius: 12, border: `1px solid rgba(255,255,255,0.1)`, overflow: 'hidden' }}>
+                            {/* Week header */}
+                            <button
+                              onClick={() => setOpenWeek(isOpen ? -1 : wi)}
+                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '0.875rem 1rem', background: isOpen ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)', border: 'none', cursor: 'pointer', textAlign: 'left', color: '#fff' }}
+                            >
+                              <span style={{ width: 26, height: 26, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 800, color: '#0a0a0a', flexShrink: 0 }}>
+                                {week.week}
+                              </span>
+                              <span style={{ flex: 1 }}>
+                                <span style={{ display: 'block', fontWeight: 700, fontSize: '0.88rem' }}>Week {week.week}</span>
+                                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>{week.theme}</span>
+                              </span>
+                              <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: 4 }}>▼</span>
+                            </button>
+
+                            {/* Topics */}
+                            {isOpen && (
+                              <div style={{ padding: '0.25rem 0.75rem 0.75rem' }}>
+                                {week.topics.map((topic, ti) => (
+                                  <TopicCard key={ti} topic={topic} color={color} />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {/* Recommended concepts */}
                 {concepts.length > 0 && (
                   <div style={{ marginBottom: '1.75rem' }}>
-                    <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', marginBottom: '0.6rem', fontWeight: 600 }}>YOUR FIRST CONCEPTS</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', marginBottom: '0.6rem', fontWeight: 700 }}>START WITH THESE CONCEPTS</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
                       {concepts.map((c) => (
-                        <span key={c} style={{ background: 'rgba(180,220,60,0.15)', border: '1px solid rgba(180,220,60,0.3)', borderRadius: 20, padding: '0.3rem 0.8rem', fontSize: '0.8rem', color: '#b4dc3c', fontWeight: 600 }}>
+                        <span key={c} style={{ background: 'rgba(215,243,75,0.12)', border: '1px solid rgba(215,243,75,0.25)', borderRadius: 20, padding: '0.3rem 0.85rem', fontSize: '0.78rem', color: '#d7f34b', fontWeight: 700 }}>
                           {c}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
-                <button
-                  onClick={finish}
-                  style={{
-                    background: '#b4dc3c', color: '#0a0a0a',
-                    border: 'none', borderRadius: 10,
-                    padding: '0.9rem 2rem', fontWeight: 800,
-                    fontSize: '0.95rem', cursor: 'pointer',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  Start learning →
+
+                <button onClick={finish} style={primaryBtnStyle}>
+                  Begin Week 1 →
                 </button>
               </>
             )}
@@ -211,15 +244,64 @@ export default function Onboarding() {
       </div>
 
       <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0.3; }
-        }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin    { to { transform: rotate(360deg); } }
+        @keyframes pulse   { 0%,100% { opacity: 0.5; } 50% { opacity: 0.15; } }
       `}</style>
     </div>
   );
 }
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function OptionButton({ label, desc, onClick }: { label: string; desc: string; onClick: () => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button onClick={onClick}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ background: hover ? 'rgba(215,243,75,0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${hover ? '#d7f34b' : 'rgba(255,255,255,0.1)'}`, borderRadius: 12, padding: '1rem 1.25rem', textAlign: 'left', cursor: 'pointer', color: '#fff', transition: 'all 0.18s' }}>
+      <div style={{ fontWeight: 700, fontSize: '1rem' }}>{label}</div>
+      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem', marginTop: 3 }}>{desc}</div>
+    </button>
+  );
+}
+
+function TrackButton({ label, desc, emoji, onClick }: { label: string; desc: string; emoji: string; onClick: () => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button onClick={onClick}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ background: hover ? 'rgba(215,243,75,0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${hover ? '#d7f34b' : 'rgba(255,255,255,0.1)'}`, borderRadius: 12, padding: '1.25rem 1rem', textAlign: 'left', cursor: 'pointer', color: '#fff', transition: 'all 0.18s' }}>
+      <div style={{ fontSize: '1.6rem', marginBottom: 6 }}>{emoji}</div>
+      <div style={{ fontWeight: 700, fontSize: '1rem' }}>{label}</div>
+      <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginTop: 3 }}>{desc}</div>
+    </button>
+  );
+}
+
+function TopicCard({ topic, color }: { topic: CurriculumTopic; color: string }) {
+  const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(topic.ytSearch)}`;
+  return (
+    <div style={{ borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', padding: '0.875rem 1rem', marginTop: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}>{topic.title}</span>
+        <a href={ytUrl} target="_blank" rel="noreferrer"
+          style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 20, padding: '0.25rem 0.65rem', fontSize: '0.65rem', color: '#fca5a5', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+          ▶ Video
+        </a>
+      </div>
+      <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', marginTop: 4, lineHeight: 1.5 }}>{topic.what}</p>
+      <div style={{ marginTop: 8, padding: '0.5rem 0.75rem', borderRadius: 8, background: `${color}14`, borderLeft: `3px solid ${color}` }}>
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: color, display: 'block', marginBottom: 2 }}>SESSION GOAL</span>
+        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>{topic.goal}</span>
+      </div>
+    </div>
+  );
+}
+
+function Spinner() {
+  return <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(215,243,75,0.3)', borderTopColor: '#d7f34b', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />;
+}
+
+const backBtnStyle: React.CSSProperties = { marginTop: '1.5rem', background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: '0.8rem' };
+const primaryBtnStyle: React.CSSProperties = { background: '#d7f34b', color: '#0a0a0a', border: 'none', borderRadius: 10, padding: '0.9rem 2.25rem', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', letterSpacing: '-0.01em' };

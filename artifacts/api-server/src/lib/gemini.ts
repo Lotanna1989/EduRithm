@@ -190,8 +190,13 @@ export async function ideAssist(
   conceptExplanation: string,
   currentCode: string,
   history: Array<{ role: "student" | "assistant"; content: string }>,
-  question: string
+  question: string,
+  sessionGoal?: string   // optional: curriculum goal for this study session
 ): Promise<string> {
+  const goalLine = sessionGoal
+    ? `\nStudent's session goal: "${sessionGoal}"\nKeep this goal in mind — if they haven't achieved it yet, gently nudge them toward it. When they do, celebrate it and remind them there's a next topic waiting.`
+    : "";
+
   const system = `You are EduRithm's friendly coding tutor helping a Nigerian university student learn ${conceptTitle}.
 The student is working in a live browser-based code editor and can see the result instantly.
 
@@ -201,10 +206,10 @@ Student's current code:
 \`\`\`
 ${currentCode.slice(0, 2500)}
 \`\`\`
-
+${goalLine}
 Rules:
-- Be warm, encouraging, and concrete. Max 120 words unless showing code.
-- If asked for a challenge, give ONE specific, achievable coding task.
+- Be warm, encouraging, and concrete. Max 130 words unless showing code.
+- If asked for a challenge, give ONE specific, achievable coding task. If a session goal exists, align the challenge with it.
 - If asked to check their code, evaluate it against the last challenge you gave.
 - Reference their actual code when pointing out issues.
 - Use short paragraphs. Nigerian students — practical, real-world framing helps.`;
@@ -222,11 +227,33 @@ Rules:
   return callGemini(contents, { maxTokens: 600 });
 }
 
+// ── IDE Assist: updated signature with optional session goal ─────────────────
+// (See ideAssist above — sessionGoal wires curriculum context into the chat)
+
 // ── Student onboarding ──────────────────────────────────────────────────────
-// Generates a personalised welcome message and recommends starting concepts.
+// Generates a personalised welcome message + full 3-week structured curriculum.
+
+export interface CurriculumTopic {
+  title: string;   // short concept name
+  what: string;    // one sentence: what the student will understand
+  goal: string;    // one sentence: concrete coding task / challenge
+  ytSearch: string; // YouTube search query (NOT a URL)
+}
+
+export interface CurriculumWeek {
+  week: number;
+  theme: string;
+  topics: CurriculumTopic[];
+}
+
+export interface Curriculum {
+  title: string;
+  weeks: CurriculumWeek[];
+}
 
 export interface OnboardResult {
   message: string;
+  curriculum: Curriculum;
   recommendedConcepts: string[];
 }
 
@@ -234,31 +261,83 @@ export async function onboardStudent(
   level: string,
   track: string
 ): Promise<OnboardResult> {
-  const prompt = `You are EduRithm's AI tutor welcoming a new student.
+  const trackName = { html: "HTML", css: "CSS", javascript: "JavaScript", python: "Python" }[track] ?? track;
+
+  const prompt = `You are EduRithm's AI curriculum designer for Nigerian university students.
 
 Student profile:
-- Level: ${level} (beginner = new to coding; intermediate = knows some basics; advanced = comfortable with fundamentals)
-- Wants to learn: ${track}
+- Level: ${level}  (beginner = brand-new to coding; intermediate = knows some basics; advanced = comfortable with fundamentals)
+- Track: ${trackName}
 
-Write a warm, motivating welcome (3-4 sentences) that:
-1. Acknowledges their level and track
-2. Tells them what they will build or accomplish on EduRithm
-3. Includes a brief encouraging line with practical Nigerian context (jobs, fintech, startups, etc.)
+TASK 1 — Welcome message (2-3 sentences):
+- Warm and exciting, acknowledging their level and track
+- Mention what they will BUILD or ACCOMPLISH over the 3 weeks
+- Include a practical Nigerian context sentence (fintech, startups, jobs, etc.)
 
-Then pick up to 3 concept titles that are perfect first steps from this list:
+TASK 2 — 3-week structured curriculum:
+Design exactly 3 weeks, each with exactly 3 topics appropriate for this level and track.
+Week 1 = foundations, Week 2 = building real things, Week 3 = project / real-world application.
+
+Each topic must have:
+- title: a short, clear concept name (e.g. "HTML Links & Images")
+- what: one sentence — what the student will understand after this topic
+- goal: one concrete coding challenge they should complete (be specific, e.g. "Build a navigation bar with 4 links that change colour on hover")
+- ytSearch: a good YouTube search query to find a tutorial video (e.g. "HTML links and images tutorial for beginners 2024")
+
+TASK 3 — recommend 1-3 existing concept titles from this list that match Week 1:
 HTML Structure & Basics, HTML Tables, Inline CSS, Internal CSS, CSS Colors, CSS Text & Typography, Python Variables, Python print(), Python if/elif/else, Python Loops
 
-Return ONLY valid JSON (no markdown):
-{ "message": "...", "recommendedConcepts": ["...", "..."] }`;
+Return ONLY valid JSON, no markdown fences:
+{
+  "message": "...",
+  "curriculum": {
+    "title": "${level.charAt(0).toUpperCase() + level.slice(1)} ${trackName} Path — 3 Weeks",
+    "weeks": [
+      {
+        "week": 1,
+        "theme": "...",
+        "topics": [
+          { "title": "...", "what": "...", "goal": "...", "ytSearch": "..." },
+          { "title": "...", "what": "...", "goal": "...", "ytSearch": "..." },
+          { "title": "...", "what": "...", "goal": "...", "ytSearch": "..." }
+        ]
+      },
+      { "week": 2, "theme": "...", "topics": [ ... ] },
+      { "week": 3, "theme": "...", "topics": [ ... ] }
+    ]
+  },
+  "recommendedConcepts": ["...", "..."]
+}`;
 
   const raw = await callGemini(
     [{ role: "user", parts: [{ text: prompt }] }],
-    { json: true, maxTokens: 512 }
+    { json: true, maxTokens: 2048 }
   );
 
-  const parsed = JSON.parse(stripJsonFences(raw)) as OnboardResult;
+  const parsed = JSON.parse(stripJsonFences(raw));
+
+  // Normalise curriculum structure defensively
+  const rawWeeks: CurriculumWeek[] = Array.isArray(parsed.curriculum?.weeks)
+    ? parsed.curriculum.weeks.map((w: any) => ({
+        week: Number(w.week ?? 1),
+        theme: String(w.theme ?? ""),
+        topics: Array.isArray(w.topics)
+          ? w.topics.map((t: any) => ({
+              title: String(t.title ?? ""),
+              what: String(t.what ?? ""),
+              goal: String(t.goal ?? ""),
+              ytSearch: String(t.ytSearch ?? `${trackName} ${t.title ?? ""} tutorial`),
+            }))
+          : [],
+      }))
+    : [];
+
   return {
-    message: String(parsed.message || "Welcome to EduRithm! Let's start coding."),
+    message: String(parsed.message || `Welcome to EduRithm! Let's start your ${trackName} journey.`),
+    curriculum: {
+      title: String(parsed.curriculum?.title ?? `${level} ${trackName} Path`),
+      weeks: rawWeeks,
+    },
     recommendedConcepts: Array.isArray(parsed.recommendedConcepts)
       ? parsed.recommendedConcepts.map(String)
       : [],

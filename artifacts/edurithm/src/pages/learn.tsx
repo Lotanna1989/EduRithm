@@ -5,6 +5,7 @@ import {
   ChevronUp,
   ExternalLink,
   Loader2,
+  Map,
   RefreshCw,
   Search,
   Send,
@@ -14,6 +15,7 @@ import {
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useListLearnConcepts, getListLearnConceptsQueryKey, useJoinWaitlist } from '@workspace/api-client-react';
 import { ErrorState, PageTitle, SkeletonBlock, StudentNav, EmptyState } from '@/components/shared';
+import { type Curriculum, STORAGE_CURRICULUM } from '@/components/Onboarding';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -326,12 +328,19 @@ function ComingSoonSection() {
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
+const WEEK_COLORS = ['#d7f34b', '#60a5fa', '#f97316'];
+
 type ChatMsg = { role: 'student' | 'assistant'; content: string };
 
 export default function LearnPage() {
   const conceptsQuery = useListLearnConcepts({ query: { queryKey: getListLearnConceptsQueryKey() } });
-  const [search, setSearch]   = useState('');
+  const [search, setSearch]     = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+  const [sideTab, setSideTab]   = useState<'browse' | 'mypath'>('browse');
+  const [openWeek, setOpenWeek] = useState(0);
+
+  // Curriculum from localStorage (generated during onboarding)
+  const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
 
   // Gemini IDE chat state
   const [activeCode, setActiveCode]   = useState('');
@@ -339,16 +348,21 @@ export default function LearnPage() {
   const [messages, setMessages]       = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput]     = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [sessionGoal, setSessionGoal] = useState<string | null>(null);
+  const [sessionTopic, setSessionTopic] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const pendingSendRef = useRef<string | null>(null);
 
-  // Pre-fill search from onboarding redirect (?search=...)
+  // Load curriculum + URL search param on mount
   useEffect(() => {
+    const raw = localStorage.getItem(STORAGE_CURRICULUM);
+    if (raw) { try { setCurriculum(JSON.parse(raw)); } catch {} }
     const params = new URLSearchParams(window.location.search);
     const q = params.get('search');
     if (q) setSearch(q);
   }, []);
 
-  // Scroll chat to bottom when messages change
+  // Scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, chatLoading]);
@@ -357,7 +371,18 @@ export default function LearnPage() {
   useEffect(() => {
     setMessages([]);
     setChatInput('');
+    setSessionGoal(null);
+    setSessionTopic(null);
   }, [selected]);
+
+  // Fire pending auto-message after chat opens
+  useEffect(() => {
+    if (chatOpen && pendingSendRef.current) {
+      const q = pendingSendRef.current;
+      pendingSendRef.current = null;
+      setTimeout(() => sendMessage(q), 150);
+    }
+  }, [chatOpen]);
 
   const concepts = conceptsQuery.data ?? [];
   const filtered = useMemo(
@@ -369,7 +394,7 @@ export default function LearnPage() {
   );
   const active = concepts.find((concept) => concept.id === selected) ?? filtered[0];
 
-  async function sendMessage(question: string) {
+  async function sendMessage(question: string, goal?: string | null) {
     if (!active || !question.trim() || chatLoading) return;
     const userMsg: ChatMsg = { role: 'student', content: question.trim() };
     const history = [...messages];
@@ -386,6 +411,7 @@ export default function LearnPage() {
           currentCode: activeCode || active.codeExample,
           history,
           question: question.trim(),
+          sessionGoal: goal ?? sessionGoal ?? undefined,
         }),
       });
       const data = await res.json();
@@ -394,6 +420,30 @@ export default function LearnPage() {
       setMessages((m) => [...m, { role: 'assistant', content: 'Something went wrong. Please try again.' }]);
     } finally {
       setChatLoading(false);
+    }
+  }
+
+  // Called when a student taps a "My Path" topic — kicks off a guided session
+  function startPathTopic(topicTitle: string, topicWhat: string, goal: string) {
+    // Try to match a concept in the DB
+    const match = concepts.find((c) =>
+      c.title.toLowerCase().includes(topicTitle.toLowerCase()) ||
+      topicTitle.toLowerCase().includes(c.title.toLowerCase().split(' ')[0])
+    );
+    if (match) setSelected(match.id);
+
+    setSessionGoal(goal);
+    setSessionTopic(topicTitle);
+    setSideTab('browse');
+    setChatOpen(true);
+
+    const openMsg = `I'm ready to study "${topicTitle}". My goal for this session: ${goal} — can you help me get started?`;
+    // If a concept was just selected, messages reset in the useEffect above, so queue via ref
+    if (match && match.id !== selected) {
+      pendingSendRef.current = openMsg;
+    } else {
+      setMessages([]);
+      setTimeout(() => sendMessage(openMsg, goal), 120);
     }
   }
 
@@ -438,31 +488,131 @@ export default function LearnPage() {
             </div>
           ) : (
             <>
-              {/* ── Sidebar list ── */}
-              <div className="space-y-2.5 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto lg:pr-1">
-                {filtered.map((concept, index) => (
+              {/* ── Sidebar ── */}
+              <div className="lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto lg:pr-1">
+
+                {/* Tab switcher */}
+                <div className="mb-3 flex gap-1 rounded-xl bg-[#e8e4db] p-1">
                   <button
-                    key={concept.id}
-                    className={`focus-ring card-lift flex w-full items-start gap-3 p-4 text-left ${
-                      active?.id === concept.id ? 'border-[#9ebc28] bg-[#edf4c9]' : ''
-                    }`}
-                    onClick={() => setSelected(concept.id)}
-                    data-testid={`button-concept-${concept.id}`}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition ${sideTab === 'browse' ? 'bg-white text-[#162239] shadow-sm' : 'text-[#687386] hover:text-[#162239]'}`}
+                    onClick={() => setSideTab('browse')}
                   >
-                    <span className="mt-0.5 shrink-0 font-mono text-xs font-bold text-[#8da923]">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <span>
-                      <span className="block font-display text-base font-bold text-[#162239]">{concept.title}</span>
-                      <span className="mt-0.5 block text-sm leading-snug text-[#687386]">{concept.summary}</span>
-                    </span>
+                    <Search size={12} /> Browse
                   </button>
-                ))}
+                  <button
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition ${sideTab === 'mypath' ? 'bg-white text-[#162239] shadow-sm' : 'text-[#687386] hover:text-[#162239]'}`}
+                    onClick={() => setSideTab('mypath')}
+                    data-testid="button-mypath-tab"
+                  >
+                    <Map size={12} /> My Path
+                  </button>
+                </div>
+
+                {/* Browse tab */}
+                {sideTab === 'browse' && (
+                  <div className="space-y-2.5">
+                    {filtered.map((concept, index) => (
+                      <button
+                        key={concept.id}
+                        className={`focus-ring card-lift flex w-full items-start gap-3 p-4 text-left ${
+                          active?.id === concept.id ? 'border-[#9ebc28] bg-[#edf4c9]' : ''
+                        }`}
+                        onClick={() => setSelected(concept.id)}
+                        data-testid={`button-concept-${concept.id}`}
+                      >
+                        <span className="mt-0.5 shrink-0 font-mono text-xs font-bold text-[#8da923]">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                        <span>
+                          <span className="block font-display text-base font-bold text-[#162239]">{concept.title}</span>
+                          <span className="mt-0.5 block text-sm leading-snug text-[#687386]">{concept.summary}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* My Path tab */}
+                {sideTab === 'mypath' && (
+                  <div>
+                    {!curriculum ? (
+                      <div className="rounded-xl border border-[#dedbd2] bg-white p-5 text-center">
+                        <Sparkles size={22} className="mx-auto mb-2 text-[#c8d0da]" />
+                        <p className="text-sm font-bold text-[#162239]">No learning path yet</p>
+                        <p className="mt-1 text-xs text-[#687386]">Complete the onboarding to get your personalised 3-week plan.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="mb-2 font-mono text-[.65rem] font-bold uppercase tracking-wider text-[#8da923]">{curriculum.title}</p>
+                        {curriculum.weeks.map((week, wi) => {
+                          const color = WEEK_COLORS[wi] ?? '#d7f34b';
+                          const isOpen = openWeek === wi;
+                          return (
+                            <div key={week.week} className="overflow-hidden rounded-xl border border-[#dedbd2] bg-white">
+                              <button
+                                className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                                onClick={() => setOpenWeek(isOpen ? -1 : wi)}
+                              >
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[.65rem] font-black text-[#0a0a0a]" style={{ background: color }}>
+                                  {week.week}
+                                </span>
+                                <span className="flex-1">
+                                  <span className="block text-xs font-bold text-[#162239]">Week {week.week}</span>
+                                  <span className="block text-[.7rem] text-[#687386]">{week.theme}</span>
+                                </span>
+                                {isOpen ? <ChevronUp size={14} className="text-[#c8d0da]" /> : <ChevronDown size={14} className="text-[#c8d0da]" />}
+                              </button>
+                              {isOpen && (
+                                <div className="space-y-2 px-3 pb-3">
+                                  {week.topics.map((topic, ti) => {
+                                    const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(topic.ytSearch)}`;
+                                    return (
+                                      <div key={ti} className="rounded-lg border border-[#e8e4db] bg-[#f7f3ea] p-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                          <span className="text-xs font-bold text-[#162239] leading-snug">{topic.title}</span>
+                                          <a href={ytUrl} target="_blank" rel="noreferrer"
+                                            className="flex shrink-0 items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-[.6rem] font-bold text-red-500 no-underline"
+                                          >▶ Video</a>
+                                        </div>
+                                        <p className="mt-1 text-[.7rem] leading-snug text-[#687386]">{topic.what}</p>
+                                        <div className="mt-2 rounded-md px-2.5 py-1.5" style={{ background: `${color}22`, borderLeft: `3px solid ${color}` }}>
+                                          <span className="block text-[.6rem] font-bold uppercase tracking-wider" style={{ color }}>Goal</span>
+                                          <span className="text-[.7rem] text-[#536078] leading-snug">{topic.goal}</span>
+                                        </div>
+                                        <button
+                                          className="mt-2 w-full rounded-lg border border-[#162239] bg-[#162239] py-1.5 text-[.7rem] font-bold text-[#d7f34b] transition hover:bg-[#1e2d45]"
+                                          onClick={() => startPathTopic(topic.title, topic.what, topic.goal)}
+                                        >
+                                          Practise with Gemini →
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* ── Detail panel ── */}
               {active && (
                 <article className="card-lift overflow-hidden p-0" data-testid={`article-concept-${active.id}`}>
+                  {/* Session goal banner */}
+                  {sessionGoal && (
+                    <div className="flex items-start gap-3 border-b border-[#d7f34b]/40 bg-[#162239] px-7 py-3">
+                      <Sparkles size={14} className="mt-0.5 shrink-0 text-[#d7f34b]" />
+                      <div>
+                        <span className="block text-[.65rem] font-bold uppercase tracking-wider text-[#d7f34b]">Session goal — {sessionTopic}</span>
+                        <span className="text-xs text-[rgba(255,255,255,0.7)]">{sessionGoal}</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Header */}
                   <div className="flex items-start justify-between gap-5 border-b border-[#dedbd2] px-7 py-6">
                     <div>

@@ -11,12 +11,14 @@ router.post("/ai/ide-assist", async (req, res) => {
     return;
   }
   try {
+    const { sessionGoal } = req.body ?? {};
     const reply = await ideAssist(
       String(conceptTitle),
       String(conceptExplanation ?? ""),
       String(currentCode),
       Array.isArray(history) ? history : [],
-      String(question)
+      String(question),
+      sessionGoal ? String(sessionGoal) : undefined
     );
     res.json({ reply });
   } catch (err: any) {
