@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
-  Check,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   Loader2,
   RefreshCw,
   Search,
+  Send,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useListLearnConcepts, getListLearnConceptsQueryKey, useJoinWaitlist } from '@workspace/api-client-react';
@@ -25,14 +28,28 @@ function filename(title: string, code: string) {
 
 // ─── Live IDE ────────────────────────────────────────────────────────────────
 
-function LiveIde({ original, title }: { original: string; title: string }) {
+function LiveIde({
+  original,
+  title,
+  onCodeChange,
+}: {
+  original: string;
+  title: string;
+  onCodeChange?: (code: string) => void;
+}) {
   const [code, setCode] = useState(original);
   const html = isHtml(original);
 
   // Reset editor when concept changes
   useEffect(() => {
     setCode(original);
+    onCodeChange?.(original);
   }, [original]);
+
+  function handleChange(next: string) {
+    setCode(next);
+    onCodeChange?.(next);
+  }
 
   return (
     <div className="mt-7 overflow-hidden rounded-xl border border-[#dedbd2] bg-[#162239]" data-testid="ide-container">
@@ -73,7 +90,7 @@ function LiveIde({ original, title }: { original: string; title: string }) {
               <textarea
                 className="code-area flex-1 w-full resize-none border-0 bg-[#162239] p-5 font-mono text-[.76rem] leading-6 text-[#e5ebdf] outline-none"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => handleChange(e.target.value)}
                 spellCheck={false}
                 autoComplete="off"
                 autoCorrect="off"
@@ -119,7 +136,7 @@ function LiveIde({ original, title }: { original: string; title: string }) {
           <textarea
             className="code-area min-h-[340px] w-full resize-y border-0 bg-[#162239] p-5 font-mono text-[.76rem] leading-6 text-[#e5ebdf] outline-none"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
             spellCheck={false}
             autoComplete="off"
             autoCorrect="off"
@@ -307,10 +324,40 @@ function ComingSoonSection() {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+type ChatMsg = { role: 'student' | 'assistant'; content: string };
+
 export default function LearnPage() {
   const conceptsQuery = useListLearnConcepts({ query: { queryKey: getListLearnConceptsQueryKey() } });
-  const [search, setSearch] = useState('');
+  const [search, setSearch]   = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+
+  // Gemini IDE chat state
+  const [activeCode, setActiveCode]   = useState('');
+  const [chatOpen, setChatOpen]       = useState(false);
+  const [messages, setMessages]       = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput]     = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Pre-fill search from onboarding redirect (?search=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('search');
+    if (q) setSearch(q);
+  }, []);
+
+  // Scroll chat to bottom when messages change
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, chatLoading]);
+
+  // Reset chat when concept changes
+  useEffect(() => {
+    setMessages([]);
+    setChatInput('');
+  }, [selected]);
 
   const concepts = conceptsQuery.data ?? [];
   const filtered = useMemo(
@@ -321,6 +368,34 @@ export default function LearnPage() {
     [concepts, search]
   );
   const active = concepts.find((concept) => concept.id === selected) ?? filtered[0];
+
+  async function sendMessage(question: string) {
+    if (!active || !question.trim() || chatLoading) return;
+    const userMsg: ChatMsg = { role: 'student', content: question.trim() };
+    const history = [...messages];
+    setMessages((m) => [...m, userMsg]);
+    setChatInput('');
+    setChatLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/ai/ide-assist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conceptTitle: active.title,
+          conceptExplanation: active.explanation ?? '',
+          currentCode: activeCode || active.codeExample,
+          history,
+          question: question.trim(),
+        }),
+      });
+      const data = await res.json();
+      setMessages((m) => [...m, { role: 'assistant', content: data.reply ?? 'Sorry, I could not respond.' }]);
+    } catch {
+      setMessages((m) => [...m, { role: 'assistant', content: 'Something went wrong. Please try again.' }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
 
   return (
     <div className="noise app-shell bg-[#f7f3ea]">
@@ -413,8 +488,120 @@ export default function LearnPage() {
                   </div>
 
                   {/* Live IDE */}
-                  <div className="px-7 pb-7">
-                    <LiveIde key={active.id} original={active.codeExample} title={active.title} />
+                  <div className="px-7 pb-4">
+                    <LiveIde
+                      key={active.id}
+                      original={active.codeExample}
+                      title={active.title}
+                      onCodeChange={setActiveCode}
+                    />
+                  </div>
+
+                  {/* ── Gemini IDE Assistant ── */}
+                  <div className="border-t border-[#e6e1d7] mx-7 mb-7">
+                    {/* Toggle bar */}
+                    <button
+                      className="flex w-full items-center justify-between gap-3 py-3.5 text-left"
+                      onClick={() => setChatOpen((o) => !o)}
+                      data-testid="button-gemini-toggle"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#162239]">
+                          <Sparkles size={12} className="text-[#d7f34b]" />
+                        </span>
+                        <span className="font-bold text-sm text-[#162239]">Ask Gemini</span>
+                        <span className="rounded-full bg-[#edf4c9] px-2 py-0.5 text-[.65rem] font-bold text-[#3d5718]">AI tutor</span>
+                      </span>
+                      {chatOpen
+                        ? <ChevronUp size={16} className="text-[#7b8491]" />
+                        : <ChevronDown size={16} className="text-[#7b8491]" />}
+                    </button>
+
+                    {chatOpen && (
+                      <div className="overflow-hidden rounded-xl border border-[#dedbd2] bg-[#0f1a2b]">
+                        {/* Quick actions */}
+                        <div className="flex flex-wrap gap-2 border-b border-[#40506a] px-4 py-3">
+                          <button
+                            className="flex items-center gap-1.5 rounded-full border border-[#40506a] bg-transparent px-3 py-1.5 font-mono text-[.65rem] text-[#9db3c8] transition hover:border-[#d7f34b] hover:text-[#d7f34b]"
+                            onClick={() => sendMessage('Give me a coding challenge for this concept 🎯')}
+                            disabled={chatLoading}
+                          >
+                            <Zap size={11} /> Challenge me
+                          </button>
+                          <button
+                            className="flex items-center gap-1.5 rounded-full border border-[#40506a] bg-transparent px-3 py-1.5 font-mono text-[.65rem] text-[#9db3c8] transition hover:border-[#d7f34b] hover:text-[#d7f34b]"
+                            onClick={() => sendMessage('Check my code against the last challenge')}
+                            disabled={chatLoading}
+                          >
+                            <Sparkles size={11} /> Check my code
+                          </button>
+                          <button
+                            className="flex items-center gap-1.5 rounded-full border border-[#40506a] bg-transparent px-3 py-1.5 font-mono text-[.65rem] text-[#9db3c8] transition hover:border-[#d7f34b] hover:text-[#d7f34b]"
+                            onClick={() => sendMessage("Explain this concept to me like I'm completely new to coding")}
+                            disabled={chatLoading}
+                          >
+                            <Sparkles size={11} /> Explain simply
+                          </button>
+                        </div>
+
+                        {/* Messages */}
+                        {messages.length > 0 && (
+                          <div className="max-h-72 overflow-y-auto px-4 py-3 space-y-3">
+                            {messages.map((m, i) => (
+                              <div
+                                key={i}
+                                className={`flex ${m.role === 'student' ? 'justify-end' : 'justify-start'}`}
+                              >
+                                <div
+                                  className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                                    m.role === 'student'
+                                      ? 'bg-[#d7f34b] text-[#162239] font-medium'
+                                      : 'bg-[#1e3050] text-[#c8d8e8]'
+                                  }`}
+                                >
+                                  {m.content}
+                                </div>
+                              </div>
+                            ))}
+                            {chatLoading && (
+                              <div className="flex justify-start">
+                                <div className="rounded-xl bg-[#1e3050] px-4 py-3">
+                                  <Loader2 size={14} className="animate-spin text-[#9db3c8]" />
+                                </div>
+                              </div>
+                            )}
+                            <div ref={chatEndRef} />
+                          </div>
+                        )}
+
+                        {messages.length === 0 && !chatLoading && (
+                          <p className="px-4 py-4 text-xs text-[#5b7a9a] font-mono">
+                            Ask anything about {active.title}, request a challenge, or paste an error message…
+                          </p>
+                        )}
+
+                        {/* Input */}
+                        <div className="flex items-center gap-2 border-t border-[#40506a] px-4 py-3">
+                          <input
+                            className="flex-1 bg-transparent font-mono text-[.76rem] text-[#e5ebdf] placeholder:text-[#40506a] outline-none"
+                            placeholder="Ask Gemini anything…"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(chatInput); } }}
+                            disabled={chatLoading}
+                            data-testid="input-gemini-chat"
+                          />
+                          <button
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#d7f34b] text-[#162239] transition hover:bg-[#c5e042] disabled:opacity-40"
+                            onClick={() => sendMessage(chatInput)}
+                            disabled={!chatInput.trim() || chatLoading}
+                            data-testid="button-gemini-send"
+                          >
+                            <Send size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </article>
               )}

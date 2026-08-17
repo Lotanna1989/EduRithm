@@ -8,6 +8,7 @@ import reviewRouter from "./review";
 import classroomRouter from "./classroom";
 import waitlistRouter from "./waitlist";
 import opportunitiesRouter from "./opportunities";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(reviewRouter);
 router.use(classroomRouter);
 router.use(waitlistRouter);
 router.use(opportunitiesRouter);
+router.use(aiRouter);
 
 export default router;

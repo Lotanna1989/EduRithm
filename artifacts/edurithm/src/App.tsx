@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react';
+import Onboarding from '@/components/Onboarding';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -84,6 +85,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <SplashScreen />
+        <Onboarding />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
           <Router />
         </WouterRouter>

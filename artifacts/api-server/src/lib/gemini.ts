@@ -182,6 +182,89 @@ Respond with ONLY the JSON object. No markdown fences, no extra text.`;
   };
 }
 
+// ── IDE Assist ─────────────────────────────────────────────────────────────
+// Real-time Gemini guidance inside the student's live code editor.
+
+export async function ideAssist(
+  conceptTitle: string,
+  conceptExplanation: string,
+  currentCode: string,
+  history: Array<{ role: "student" | "assistant"; content: string }>,
+  question: string
+): Promise<string> {
+  const system = `You are EduRithm's friendly coding tutor helping a Nigerian university student learn ${conceptTitle}.
+The student is working in a live browser-based code editor and can see the result instantly.
+
+Current concept: ${conceptTitle}
+${conceptExplanation ? `Concept explanation: ${conceptExplanation}` : ""}
+Student's current code:
+\`\`\`
+${currentCode.slice(0, 2500)}
+\`\`\`
+
+Rules:
+- Be warm, encouraging, and concrete. Max 120 words unless showing code.
+- If asked for a challenge, give ONE specific, achievable coding task.
+- If asked to check their code, evaluate it against the last challenge you gave.
+- Reference their actual code when pointing out issues.
+- Use short paragraphs. Nigerian students — practical, real-world framing helps.`;
+
+  const contents: GeminiContent[] = [
+    { role: "user", parts: [{ text: system }] },
+    { role: "model", parts: [{ text: `Ready to help with ${conceptTitle}! Ask me anything or say "challenge me" to get a practice task.` }] },
+    ...history.map((h) => ({
+      role: (h.role === "student" ? "user" : "model") as "user" | "model",
+      parts: [{ text: h.content }],
+    })),
+    { role: "user", parts: [{ text: question }] },
+  ];
+
+  return callGemini(contents, { maxTokens: 600 });
+}
+
+// ── Student onboarding ──────────────────────────────────────────────────────
+// Generates a personalised welcome message and recommends starting concepts.
+
+export interface OnboardResult {
+  message: string;
+  recommendedConcepts: string[];
+}
+
+export async function onboardStudent(
+  level: string,
+  track: string
+): Promise<OnboardResult> {
+  const prompt = `You are EduRithm's AI tutor welcoming a new student.
+
+Student profile:
+- Level: ${level} (beginner = new to coding; intermediate = knows some basics; advanced = comfortable with fundamentals)
+- Wants to learn: ${track}
+
+Write a warm, motivating welcome (3-4 sentences) that:
+1. Acknowledges their level and track
+2. Tells them what they will build or accomplish on EduRithm
+3. Includes a brief encouraging line with practical Nigerian context (jobs, fintech, startups, etc.)
+
+Then pick up to 3 concept titles that are perfect first steps from this list:
+HTML Structure & Basics, HTML Tables, Inline CSS, Internal CSS, CSS Colors, CSS Text & Typography, Python Variables, Python print(), Python if/elif/else, Python Loops
+
+Return ONLY valid JSON (no markdown):
+{ "message": "...", "recommendedConcepts": ["...", "..."] }`;
+
+  const raw = await callGemini(
+    [{ role: "user", parts: [{ text: prompt }] }],
+    { json: true, maxTokens: 512 }
+  );
+
+  const parsed = JSON.parse(stripJsonFences(raw)) as OnboardResult;
+  return {
+    message: String(parsed.message || "Welcome to EduRithm! Let's start coding."),
+    recommendedConcepts: Array.isArray(parsed.recommendedConcepts)
+      ? parsed.recommendedConcepts.map(String)
+      : [],
+  };
+}
+
 export async function gradeHtml(
   assignmentPrompt: string,
   fileName: string,
