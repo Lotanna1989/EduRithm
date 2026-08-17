@@ -7,6 +7,15 @@ export const STORAGE_LEVEL      = 'edurithm_level';
 export const STORAGE_TRACK      = 'edurithm_track';
 export const STORAGE_CURRICULUM = 'edurithm_curriculum';
 
+/** Clear all onboarding data and reload so the flow restarts from scratch. */
+export function resetOnboarding() {
+  localStorage.removeItem(STORAGE_ONBOARDED);
+  localStorage.removeItem(STORAGE_LEVEL);
+  localStorage.removeItem(STORAGE_TRACK);
+  localStorage.removeItem(STORAGE_CURRICULUM);
+  window.location.reload();
+}
+
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 // ── Types (mirrored from API) ────────────────────────────────────────────────

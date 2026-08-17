@@ -15,7 +15,7 @@ import {
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useListLearnConcepts, getListLearnConceptsQueryKey, useJoinWaitlist } from '@workspace/api-client-react';
 import { ErrorState, PageTitle, SkeletonBlock, StudentNav, EmptyState } from '@/components/shared';
-import { type Curriculum, STORAGE_CURRICULUM } from '@/components/Onboarding';
+import { type Curriculum, STORAGE_CURRICULUM, resetOnboarding } from '@/components/Onboarding';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -344,7 +344,7 @@ export default function LearnPage() {
 
   // Gemini IDE chat state
   const [activeCode, setActiveCode]   = useState('');
-  const [chatOpen, setChatOpen]       = useState(false);
+  const [chatOpen, setChatOpen]       = useState(true);
   const [messages, setMessages]       = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput]     = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -537,9 +537,19 @@ export default function LearnPage() {
                   <div>
                     {!curriculum ? (
                       <div className="rounded-xl border border-[#dedbd2] bg-white p-5 text-center">
-                        <Sparkles size={22} className="mx-auto mb-2 text-[#c8d0da]" />
+                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#162239]">
+                          <Sparkles size={20} className="text-[#d7f34b]" />
+                        </div>
                         <p className="text-sm font-bold text-[#162239]">No learning path yet</p>
-                        <p className="mt-1 text-xs text-[#687386]">Complete the onboarding to get your personalised 3-week plan.</p>
+                        <p className="mt-1 text-xs leading-relaxed text-[#687386]">
+                          Gemini will build you a personalised 3-week plan — topics, session goals, and YouTube videos — based on your level and track.
+                        </p>
+                        <button
+                          onClick={resetOnboarding}
+                          className="mt-4 w-full rounded-xl bg-[#162239] py-2.5 text-xs font-bold text-[#d7f34b] transition hover:bg-[#1e2d45]"
+                        >
+                          ✦ Set up my learning path
+                        </button>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -725,9 +735,26 @@ export default function LearnPage() {
                         )}
 
                         {messages.length === 0 && !chatLoading && (
-                          <p className="px-4 py-4 text-xs text-[#5b7a9a] font-mono">
-                            Ask anything about {active.title}, request a challenge, or paste an error message…
-                          </p>
+                          <div className="px-4 py-5">
+                            <p className="text-xs text-[#5b7a9a] font-mono mb-3">
+                              Your AI tutor is ready. Try one of these to get started:
+                            </p>
+                            <div className="space-y-2">
+                              {[
+                                `Explain ${active.title} to me in simple terms`,
+                                `What can I actually build with ${active.title}?`,
+                                `I don't understand the code — walk me through it`,
+                              ].map((q) => (
+                                <button
+                                  key={q}
+                                  onClick={() => sendMessage(q)}
+                                  className="w-full rounded-lg border border-[#40506a] bg-transparent px-3 py-2 text-left font-mono text-[.65rem] text-[#9db3c8] transition hover:border-[#d7f34b] hover:text-[#d7f34b]"
+                                >
+                                  "{q}"
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         )}
 
                         {/* Input */}
